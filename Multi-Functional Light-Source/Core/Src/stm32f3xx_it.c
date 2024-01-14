@@ -41,7 +41,10 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+volatile uint8_t button_state = 1;  // stable button state
+uint32_t ticks_pressed = 0  ;
 
+volatile uint8_t middle_button_pressed = 0 ;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -197,6 +200,54 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f3xx.s).                    */
 /******************************************************************************/
+
+/**
+  * @brief This function handles EXTI line[9:5] interrupts.
+  */
+void EXTI9_5_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI9_5_IRQn 0 */
+	if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_6) != RESET){
+
+		if(HAL_GetTick() - ticks_pressed >= 20){
+			// stable low state
+			if(button_state == 1  && HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == 0){
+				button_state =0 ;
+				ticks_pressed = HAL_GetTick() ;
+
+				middle_button_pressed = 1;
+			}
+
+			// stable high state
+			if(button_state == 0 && HAL_GPIO_ReadPin(GPIOA ,GPIO_PIN_6) == 1 ){
+				button_state = 1 ;
+				ticks_pressed = HAL_GetTick() ;
+			}
+		}
+
+//		TimeButtonPress = HAL_GetTick() ;
+//			//before flag set, filter high freqeuncy jitter/bounce out
+//			if(TimeButtonPress - NewBenchTime >20)
+//			{
+//				//new benchmark from which we measure button bounce
+//				NewBenchTime = TimeButtonPress ;
+//				button_state = !button_state ;
+//
+//					if(button_state == 0)
+//					{
+//						middle_button_pressed= 1 ; //flag set
+//					}
+//			}
+//
+
+		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_6) ;
+	}
+  /* USER CODE END EXTI9_5_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6);
+  /* USER CODE BEGIN EXTI9_5_IRQn 1 */
+
+  /* USER CODE END EXTI9_5_IRQn 1 */
+}
 
 /**
   * @brief This function handles USART2 global interrupt / USART2 wake-up interrupt through EXTI line 26.
