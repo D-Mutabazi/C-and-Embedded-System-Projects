@@ -212,7 +212,7 @@ void EXTI9_5_IRQHandler(void)
 		if(HAL_GetTick() - ticks_pressed >= 20){
 			// stable low state
 			if(button_state == 1  && HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == 0){
-				button_state =0 ;
+				button_state =0 ; // stable low reached
 				ticks_pressed = HAL_GetTick() ;
 
 				middle_button_pressed = 1;
@@ -220,25 +220,12 @@ void EXTI9_5_IRQHandler(void)
 
 			// stable high state
 			if(button_state == 0 && HAL_GPIO_ReadPin(GPIOA ,GPIO_PIN_6) == 1 ){
-				button_state = 1 ;
 				ticks_pressed = HAL_GetTick() ;
+				button_state =1 ; // stable high state
+
 			}
 		}
 
-//		TimeButtonPress = HAL_GetTick() ;
-//			//before flag set, filter high freqeuncy jitter/bounce out
-//			if(TimeButtonPress - NewBenchTime >20)
-//			{
-//				//new benchmark from which we measure button bounce
-//				NewBenchTime = TimeButtonPress ;
-//				button_state = !button_state ;
-//
-//					if(button_state == 0)
-//					{
-//						middle_button_pressed= 1 ; //flag set
-//					}
-//			}
-//
 
 		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_6) ;
 	}

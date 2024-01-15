@@ -23,7 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
 #include "stdlib.h"
-
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,6 +45,8 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 extern uint8_t middle_button_pressed ;
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -57,7 +59,7 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t studentNum[11]="#23765518$\n" ;
+uint8_t studentNum[13]="#:23765518:$\n" ;
 uint8_t recvd_char[1];
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
@@ -77,6 +79,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+	int button_count= 0 ;
+	char button_press[10] = {' '} ;
 
   /* USER CODE END 1 */
 
@@ -102,7 +106,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   HAL_Delay(200);
-  HAL_UART_Transmit(&huart2, studentNum, 11, 150); //transmit student number
+  HAL_UART_Transmit(&huart2, studentNum, 13, 150); //transmit student number
 
   HAL_UART_Receive_IT(&huart2, recvd_char, 1); //recv character input
 
@@ -115,8 +119,21 @@ int main(void)
   {
 	 //10 ms delay
 	  if(middle_button_pressed == 1){
-		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5)  ;
 		  middle_button_pressed = 0;
+
+		  button_count++;
+
+		  if(button_count > 999){
+			  button_count = 1 ;
+		  }
+
+		  sprintf(button_press,"%d\n", button_count) ;
+
+		  // TRANSMIT BUTTON COUNT
+		  HAL_UART_Transmit(&huart2, (uint8_t*)button_press, strlen(button_press), 50) ;
+
+		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5)  ;
+
 	  }
 
     /* USER CODE END WHILE */
