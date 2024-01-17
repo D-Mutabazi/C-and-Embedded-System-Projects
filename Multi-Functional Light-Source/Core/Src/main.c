@@ -47,6 +47,11 @@ UART_HandleTypeDef huart2;
 extern uint8_t middle_button_pressed ;
 extern  uint8_t right_button_pressed ;
 extern uint8_t left_button_pressed ;
+int button_count= 0 ;
+
+uint8_t start_up = 1 ;
+uint8_t em_count = 1 ;
+uint8_t em_default = 1 ;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,8 +84,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	int button_count= 0 ;
-	char button_press[10] = {' '} ;
 
   /* USER CODE END 1 */
 
@@ -118,37 +121,65 @@ int main(void)
   while (1)
   {
 	 //10 ms delay
-	  if(middle_button_pressed == 1){
-		  middle_button_pressed = 0;
+	 if(left_button_pressed ==1 || start_up == 1){
+		 start_up = 0 ; //for default MF state
+		 button_count++ ;
 
-		  button_count++;
+		 if(button_count > 3){
+			 button_count = 1 ;
+		 }
 
-		  if(button_count > 999){
-			  button_count = 1 ;
-		  }
+		 if(button_count == 1){
+			 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
+			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET);
+			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+			 em_count=1;
+			 em_default = 1; // to re-enter the EM state
+		 }
+		 else if(button_count == 2){
+			 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
+			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
 
-		  sprintf(button_press,"%d\n", button_count) ;
 
-		  // TRANSMIT BUTTON COUNT
-		  HAL_UART_Transmit(&huart2, (uint8_t*)button_press, strlen(button_press), 50) ;
+		 }else{
+			 if(button_count == 3){
+				 em_count=1;
+				 em_default = 1; // to re-enter EM state
+				 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+				 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET);
+				 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+				 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+			 }
+		 }
+		 left_button_pressed = 0 ;
+	 }
 
-		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5)  ;
-		  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
+	 //EMERGENCY MODES
+	  if(button_count ==2 ){
+		 if(right_button_pressed ==1){
+			 right_button_pressed = 0  ;
+			 em_count++ ;
+
+			 if(em_count>3){
+				 em_count = 1 ;
+			 }
+		 }
+		 if(em_count == 1 || em_default ==1){ //strobe wit default intensity
+			 em_default = 0 ; //default state reached
+			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+		 }
+		 else if(em_count ==2 ){ // SOS morse
+
+			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
+		 }
+		 else{
+			 if(em_count == 3){ // custom morse
+				 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
+		 }
+		}
 	  }
-	  else if(right_button_pressed==1){
-		  right_button_pressed = 0 ;
-		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5)  ;
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
-
-	  }
-	  else{
-		  if(left_button_pressed ==1){
-			  left_button_pressed = 0 ;
-			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
-		  }
-	  }
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
