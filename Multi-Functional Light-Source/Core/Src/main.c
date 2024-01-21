@@ -54,7 +54,7 @@ extern uint8_t left_button_pressed ;
 int button_count= 0 ;
 
 uint8_t start_up = 1 ;
-uint8_t em_count = 1 ;
+uint8_t em_count = 0 ;
 uint8_t em_default = 1 ;
 
 uint16_t adc_buf[adc_buf_len] ;  // stores adc values
@@ -66,6 +66,7 @@ uint16_t adc_val_snapshot ;      // previous snapshot of adc value
 uint8_t adc_conv_complete = 0 ;  // when buffer filled DMA interrrupt triggered and buffer ready for processin
 double adc_scale_up =1.0314861460957178841309823677582 ;
 uint16_t scaled_adc_val ;
+uint8_t update_led_via_ADC = 0 ;  // WHITE led to be updated via ADC
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -103,6 +104,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 void adc_dma_val_processing(){
 
 	if(adc_conv_complete == 1){
+
 		adc_conv_complete =0  ;
 		sum = 0 ;
 		for(int i = 0 ; i < adc_buf_len ; i++){
@@ -117,10 +119,53 @@ void adc_dma_val_processing(){
 			adc_val_snapshot = scaled_adc_val ;
 			adc_val_capture = 0 ;
 		}
-//		sprintf(adc_val, "%d\n", scaled_adc_val) ;
-//		HAL_UART_Transmit_IT(&huart2, (uint8_t*)adc_val, strlen(adc_val)) ;
+	}
+
+	// if ADC movement significant update LED intensity
+	if(abs(scaled_adc_val - adc_val_snapshot) >15){
+	  update_led_via_ADC = 1 ;
+	}
+
+}
+
+
+void system_state_update(){
+	 if(left_button_pressed ==1 ){
+		 button_count++ ;
+		 if(button_count > 2){
+			 button_count = 0 ;
+		 }
+		 update_led_via_ADC =  0 ; // don't read ADC by default in next state
+		 // snapshot of ADC taken in next state
+		 if(adc_conv_complete == 1){
+			 adc_val_capture =1  ; // capture ADC value
+		 }
+		 left_button_pressed = 0 ;
+	 }
+}
+
+/**
+ * Updates system state after right button pressed in emergency mode
+ */
+void right_button_state_update(){
+	if(button_count == 1){
+		if(right_button_pressed){
+			right_button_pressed = 0 ;
+
+			update_led_via_ADC = 0 ; // dont read adc by default in next state
+
+			 em_count++ ;
+
+			 if(em_count>2){
+				 em_count = 0;
+			 }
+		}
+	}else if( button_count != 1 && right_button_pressed){
+		right_button_pressed = 0; //do not read right button presses triggered
+								  // in other states except emergency mode
 	}
 }
+
 /* USER CODE END 0 */
 
 /**
@@ -160,7 +205,6 @@ int main(void)
 
   HAL_UART_Receive_IT(&huart2, recvd_char, 1); //recv character input
 
-
   //Startup ADC
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, adc_buf_len) ;
 
@@ -171,77 +215,58 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  //run adc and capture previous snapshot of ADC value
+	  // left button press to update system state (MF -> ME -> MM)
+	  system_state_update() ;
+	  //run adc and capture previous snapshot of ADC value and adc movement processing
 	  adc_dma_val_processing();
 
-	  if(abs(scaled_adc_val - adc_val_snapshot) >15 && adc_val_capture == 0){
-		  sprintf(adc_val, "%d\n", scaled_adc_val) ;
-		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)adc_val, strlen(adc_val)) ;
-	  }
-
-
-
-	 //10 ms delay
-	 if(left_button_pressed ==1 || start_up == 1){
+	 // system state
+	 if(button_count == 0 || start_up == 1){
 		 start_up = 0 ; //for default MF state
-		 button_count++ ;
 
-		 if(button_count > 3){
-			 button_count = 1 ;
+		 MF_mode_LED() ; // sets the corresponding mode LED
+		 em_count=0;     // reset the emergency mode count
+		 em_default = 1; // to re-enter the EM state
+
+		 //read ADC value and update LED intensity
+		  if(update_led_via_ADC == 1){
+			  sprintf(adc_val, "%d\n", scaled_adc_val) ;
+			  HAL_UART_Transmit_IT(&huart2, (uint8_t*)adc_val, strlen(adc_val)) ;
+		  }
+
+	 }else if(button_count == 1){// right button system state updated
+		 ME_mode_LED() ; // sets the corresponding modes LED
+
+
+		 if(update_led_via_ADC == 1){
+			 sprintf(adc_val, "%d\n", scaled_adc_val) ;
+			 HAL_UART_Transmit_IT(&huart2, (uint8_t*)adc_val, strlen(adc_val)) ;
 		 }
+	 }else{
+		 if(button_count == 2){
 
-		 if(button_count == 1){
-			 //ensures that right button press should not be registered in any other state besides EM mode
-			 if(right_button_pressed == 1){
+			 em_count=0; // reset the emergency mode state
+			 em_default = 1; // to re-enter EM state
 
-				 right_button_pressed = 0  ;
-
-			 }
-			 MF_mode_LED() ; // sets the corresponding mode LED
-			 em_count=1;
-			 em_default = 1; // to re-enter the EM state
-
+			 MM_mode_LED() ; //sets the corresponding modes LED
 		 }
-		 else if(button_count == 2){
-			 ME_mode_LED() ; // sets the corresponding modes LED
-
-
-		 }else{
-			 if(button_count == 3){
-				 //ensures that righ button press should not be registered in any other state besides EM mode
-				 if(right_button_pressed == 1){
-					 right_button_pressed = 0  ;
-
-				 }
-				 em_count=1;
-				 em_default = 1; // to re-enter EM state
-
-				 MM_mode_LED() ; //sets the corresponding modes LED
-			 }
-		 }
-		 left_button_pressed = 0 ;
 	 }
 
+	 // right button state update
+	 right_button_state_update() ;
 	 //EMERGENCY MODES
-	  if(button_count ==2 ){
-		 if(right_button_pressed ==1 ){
-			 right_button_pressed = 0  ;
-			 em_count++ ;
+	  if(button_count ==1 ){
 
-			 if(em_count>3){
-				 em_count = 1 ;
-			 }
-		 }
-		 if(em_count == 1 || em_default ==1){ //strobe wit default intensity
+		 if(em_count == 0 || em_default ==1){ //strobe wit default intensity
 			 em_default = 0 ; //default state reached
 			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
 		 }
-		 else if(em_count ==2 ){ // SOS morse
+		 else if(em_count ==1){ // SOS morse
 
 			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
 		 }
 		 else{
-			 if(em_count == 3){ // custom morse
+			 if(em_count == 2){ // custom morse
 				 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
 		 }
 		}
