@@ -45,6 +45,8 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -67,6 +69,9 @@ uint8_t adc_conv_complete = 0 ;  // when buffer filled DMA interrrupt triggered 
 double adc_scale_up =1.0314861460957178841309823677582 ;
 uint16_t scaled_adc_val ;
 uint8_t update_led_via_ADC = 0 ;  // WHITE led to be updated via ADC
+
+uint8_t LED_ON = 0 ;   // white LED set on of off
+uint16_t LED_intensity = 1 ;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -75,6 +80,7 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 void MF_mode_LED() ;
 void ME_mode_LED();
@@ -125,6 +131,10 @@ void adc_dma_val_processing(){
 	if(abs(scaled_adc_val - adc_val_snapshot) >15){
 	  update_led_via_ADC = 1 ;
 	}
+
+//	 WHITE LED intensity
+	LED_intensity =(float)(scaled_adc_val)*(512.0/4095.0)  ;
+
 
 }
 
@@ -198,6 +208,7 @@ int main(void)
   MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_ADC1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_Delay(200);
@@ -208,6 +219,8 @@ int main(void)
   //Startup ADC
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, adc_buf_len) ;
 
+  // TIM2_CH1 start PWM
+  HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1) ;
 
   /* USER CODE END 2 */
 
@@ -220,6 +233,7 @@ int main(void)
 	  //run adc and capture previous snapshot of ADC value and adc movement processing
 	  adc_dma_val_processing();
 
+
 	 // system state
 	 if(button_count == 0 || start_up == 1){
 		 start_up = 0 ; //for default MF state
@@ -228,11 +242,24 @@ int main(void)
 		 em_count=0;     // reset the emergency mode count
 		 em_default = 1; // to re-enter the EM state
 
-		 //read ADC value and update LED intensity
-		  if(update_led_via_ADC == 1){
-			  sprintf(adc_val, "%d\n", scaled_adc_val) ;
-			  HAL_UART_Transmit_IT(&huart2, (uint8_t*)adc_val, strlen(adc_val)) ;
-		  }
+		 // Middle button press -> LED ON / OFF
+		 if(middle_button_pressed == 1){
+			 LED_ON = !LED_ON ;  // turns the LED on of off
+
+			 if(LED_ON == 1){
+				 htim2.Instance->CCR1 = 1 ; // LED ON
+			 }else if(LED_ON ==0){
+				 htim2.Instance->CCR1 = 0 ; //LED OFFS
+			 }
+			 middle_button_pressed = 0 ;
+		 }
+
+		 // if LED_ON and SLIDER MOVED -> updated LED intensity
+		if(LED_ON == 1 && update_led_via_ADC == 1){
+		  htim2.Instance->CCR1 =  LED_intensity ; // vary the duty cycle of the LED [1:512]
+		  sprintf(adc_val, "%d\n", scaled_adc_val) ;
+		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)adc_val, strlen(adc_val)) ;
+		}
 
 	 }else if(button_count == 1){// right button system state updated
 		 ME_mode_LED() ; // sets the corresponding modes LED
@@ -316,9 +343,11 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_ADC12;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_ADC12
+                              |RCC_PERIPHCLK_TIM2;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12PLLCLK_DIV1;
+  PeriphClkInit.Tim2ClockSelection = RCC_TIM2CLK_HCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -392,6 +421,65 @@ static void MX_ADC1_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 36;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 512;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -458,23 +546,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LD2_Pin|LED_D2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, LED_D3_Pin|LED_D4_Pin|LED_D5_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LED_D3_Pin|LED_D4_Pin|LED_D5_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_D2_GPIO_Port, LED_D2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : LD2_Pin LED_D2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin|LED_D2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PA6 PA7 */
   GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
@@ -488,6 +569,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LED_D2_Pin */
+  GPIO_InitStruct.Pin = LED_D2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LED_D2_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PB8 */
   GPIO_InitStruct.Pin = GPIO_PIN_8;
