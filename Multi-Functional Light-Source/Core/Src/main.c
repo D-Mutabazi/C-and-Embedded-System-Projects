@@ -75,7 +75,7 @@ uint16_t LED_intensity = 1 ;
 
 /**Emergency mode*/
 // STROBE
-uint16_t strobe_delay =  512 ; // UNIT = ms f = 0.9765HZ (default on time)
+uint16_t strobe_delay =  300 ; // UNIT = ms f = 0.9765HZ (default on time)
 uint32_t strobe_ticks = 0 ; // strobe delay count
 uint8_t led_strobe_on = 0 ; // flag to alternate between on/off in strobe
 uint32_t timePassed = 0 ;
@@ -166,6 +166,9 @@ void system_state_update(){
 		 if(adc_conv_complete == 1){
 			 adc_val_capture =1  ; // capture ADC value
 		 }
+
+		 // LED off at each new state
+		 htim2.Instance->CCR1 = 0;
 		 left_button_pressed = 0 ;
 	 }
 }
@@ -308,13 +311,12 @@ int main(void)
 			 em_default = 0 ; //default state reached
 			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
 
-			 //LED_on =?
-			 if(LED_ON){
+
+			 if(LED_ON){//LED_on =?
 				 // default delay 512ms
 				 timePassed =HAL_GetTick() - strobe_ticks ;
 				 // time passed >512
 				 if( timePassed >= strobe_delay && led_strobe_on == 0){
-//					 strobe_ticks  = HAL_GetTick() ; // update current time
 					 led_strobe_on =1 ;
 					 htim2.Instance->CCR1 = 0 ;
 				 }
