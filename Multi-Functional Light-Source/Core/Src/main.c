@@ -72,6 +72,22 @@ uint8_t update_led_via_ADC = 0 ;  // WHITE led to be updated via ADC
 
 uint8_t LED_ON = 0 ;   // white LED set on of off
 uint16_t LED_intensity = 1 ;
+
+/**Emergency mode*/
+// STROBE
+uint16_t strobe_delay =  512 ; // UNIT = ms f = 0.9765HZ (default on time)
+uint32_t strobe_ticks = 0 ; // strobe delay count
+uint8_t led_strobe_on = 0 ; // flag to alternate between on/off in strobe
+uint32_t timePassed = 0 ;
+//SOS morse
+char letter[]={'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S'
+					,'T','U','V','W','X','Y','Z', '1','2','3','4','5','6','7','8','9','0'} ;
+
+char *morse_symbol[]={". -","- . . .","- . - .","- . ." ,"." ,". . - .","- - .",". . . .",". .",". - - -",
+				"- . -",". - . ." ,"- -" ,"- ." ,"- - -" ,". - - .","- - . -",". - .",". . .","-",
+				". . -",". . . -",". - -","- . . -","- . - -","- - . .", ". - - - -",". . - - -",
+				". . . - -",". . . . -",". . . . .","- . . . .","- - . . .","- - - . .",
+				"- - - - .","- - - - -"};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -222,6 +238,9 @@ int main(void)
   // TIM2_CH1 start PWM
   HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1) ;
 
+  strobe_ticks  = HAL_GetTick() ;
+
+  //
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -279,6 +298,7 @@ int main(void)
 		 }
 	 }
 
+//	 strobe_ticks = HAL_GetTick() ;
 	 // right button state update
 	 right_button_state_update() ;
 	 //EMERGENCY MODES
@@ -287,13 +307,32 @@ int main(void)
 		 if(em_count == 0 || em_default ==1){ //strobe wit default intensity
 			 em_default = 0 ; //default state reached
 			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+
+			 //LED_on =?
+			 if(LED_ON){
+				 // default delay 512ms
+				 timePassed =HAL_GetTick() - strobe_ticks ;
+				 // time passed >512
+				 if( timePassed >= strobe_delay && led_strobe_on == 0){
+//					 strobe_ticks  = HAL_GetTick() ; // update current time
+					 led_strobe_on =1 ;
+					 htim2.Instance->CCR1 = 0 ;
+				 }
+				 // time Passed > 1024
+				 if(timePassed >= 1024 && led_strobe_on == 1){
+					 strobe_ticks =  HAL_GetTick() ; // update current time
+					 led_strobe_on = 0 ;
+
+					 htim2.Instance->CCR1 =256;
+				 }
+			 }
 		 }
-		 else if(em_count ==1){ // SOS morse
+		 else if(em_count ==1){ // SOS MOSRE
 
 			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
 		 }
 		 else{
-			 if(em_count == 2){ // custom morse
+			 if(em_count == 2){ // CUSTOM MORSE
 				 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
 		 }
 		}
