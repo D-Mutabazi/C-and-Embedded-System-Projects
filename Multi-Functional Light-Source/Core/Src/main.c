@@ -79,6 +79,7 @@ uint16_t strobe_delay =  300 ; // UNIT = ms f = 0.9765HZ (default on time)
 uint32_t strobe_ticks = 0 ; // strobe delay count
 uint8_t led_strobe_on = 0 ; // flag to alternate between on/off in strobe
 uint32_t timePassed = 0 ;
+
 //SOS morse
 char letter[]={'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S'
 					,'T','U','V','W','X','Y','Z', '1','2','3','4','5','6','7','8','9','0'} ;
@@ -88,6 +89,16 @@ char *morse_symbol[]={". -","- . . .","- . - .","- . ." ,"." ,". . - .","- - .",
 				". . -",". . . -",". - -","- . . -","- . - -","- - . .", ". - - - -",". . - - -",
 				". . . - -",". . . . -",". . . . .","- . . . .","- - . . .","- - - . .",
 				"- - - - .","- - - - -"};
+
+uint16_t time_unit = 512 ; //ms
+uint32_t morse_current_time = 0 ;
+uint8_t space_in_letter= 0;
+uint8_t space_between_letters = 1 ;
+uint8_t space_between_words = 1 ;
+uint8_t DOT = 1 ;
+uint8_t DASH = 1 ;
+uint8_t next_char_check = 0 ; //  check if the next character is a dot or dash
+char SOS[] = ". . . - - - . . ." ; // SOS Morse code ;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -103,6 +114,9 @@ void ME_mode_LED();
 void MM_mode_LED();
 
 void adc_dma_val_processing() ;
+
+void Space_In_Letters()  ;
+void Dot_delay();
 
 /* USER CODE END PFP */
 
@@ -195,6 +209,50 @@ void right_button_state_update(){
 	}
 }
 
+// SOS Morse Encoding
+void Dot_delay(){
+	htim2.Instance->CCR1 = 512; //
+
+	if(HAL_GetTick() - morse_current_time > time_unit){
+		morse_current_time =  HAL_GetTick() ;
+//		space_in_letter =  1;
+	}
+
+//	if(space_in_letter){
+//		Space_In_Letters() ;
+//	}
+
+}
+
+void DASH_Delay(){
+	if(HAL_GetTick() - morse_current_time >3*time_unit){
+		htim2.Instance->CCR1 = 512 ;
+	}
+
+}
+
+void Space_In_Letters(){
+	htim2.Instance->CCR1 = 0 ;
+	if(HAL_GetTick() - morse_current_time > time_unit){
+		morse_current_time =  HAL_GetTick() ;
+//		space_in_letter = 0;
+	}
+
+}
+
+void Space_Between_Letters(){
+	if(HAL_GetTick() - morse_current_time >3*time_unit){
+		htim2.Instance->CCR1= 0 ;
+	}
+
+}
+
+void Space_Between_Words(){
+	if(HAL_GetTick() - morse_current_time >7*time_unit){
+		htim2.Instance->CCR1 = 0 ;
+	}
+
+}
 /* USER CODE END 0 */
 
 /**
@@ -204,6 +262,7 @@ void right_button_state_update(){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+	char sos[] = ". . ." ;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -242,7 +301,7 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1) ;
 
   strobe_ticks  = HAL_GetTick() ;
-
+//  int i = 0 ;
   //
   /* USER CODE END 2 */
 
@@ -312,7 +371,7 @@ int main(void)
 			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
 
 
-			 if(LED_ON){//LED_on =?
+			 if(LED_ON){ //LED_on =?
 				 // default delay 512ms
 				 timePassed =HAL_GetTick() - strobe_ticks ;
 				 // time passed >512
@@ -330,8 +389,79 @@ int main(void)
 			 }
 		 }
 		 else if(em_count ==1){ // SOS MOSRE
-
 			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
+
+			 for(int i = 0; SOS[i] !='\0' ; i++){
+
+				 if(SOS[i] == '.' && DOT == 1){
+
+					 htim2.Instance->CCR1 = 512 ;
+					 timePassed = HAL_GetTick() - morse_current_time ;
+					 if(HAL_GetTick() - morse_current_time >= time_unit){
+						 morse_current_time = HAL_GetTick() ;
+
+						 DOT=0;
+						 DASH =0 ;
+
+						 space_in_letter = 1 ;
+
+//						 continue ;  //continue to the next iteration
+					 }
+				 }
+				 else if(SOS[i] =='-' && DASH == 1){
+
+					 htim2.Instance->CCR1 = 512 ;
+					 if(HAL_GetTick() - morse_current_time >= 3*time_unit){
+						 morse_current_time = HAL_GetTick() ;
+
+						 DOT =  0 ;
+						 DASH = 0 ;
+						 space_in_letter = 1 ;
+
+//						 continue ; // continue to the next loop iteration
+
+					 }
+				 }
+				 else if(SOS[i]== ' ' && space_in_letter ==1 ){
+
+					 htim2.Instance->CCR1 = 0 ;
+
+					 if(HAL_GetTick() - morse_current_time >= time_unit){
+						 morse_current_time = HAL_GetTick() ;
+						 space_in_letter = 0 ;
+
+						 //NEXT CHARACTER CHECK
+//						 if(SOS[i++] == '.'){
+//							 DOT =1 ;
+//						 }
+//						 else if(SOS[i++] == '-' ){
+//							 DASH = 1;
+//						 }
+						 next_char_check  = 1 ;
+						 DOT= 1 ;
+						 DASH =1;
+//						 continue ; //continue to the next iteration
+					 }
+//					 if(next_char_check == 1){
+//						 next_char_check = 0 ;
+//						 if(SOS[i++] == '.'){
+//							 DOT = 1;
+//						 }
+//					 }
+				 }
+				 else{
+					 if(SOS[i]== '\0'){
+
+						 htim2.Instance->CCR1 = 0 ;
+						 if(HAL_GetTick() - morse_current_time >= 3*time_unit){
+							morse_current_time = HAL_GetTick() ;
+//							continue ;  // continue to the next iteration or reset index?
+
+						 }
+					 }
+				 }
+			 }
+//			 Space_Between_Letters() ;
 		 }
 		 else{
 			 if(em_count == 2){ // CUSTOM MORSE
