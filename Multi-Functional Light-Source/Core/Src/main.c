@@ -132,14 +132,35 @@ void TURN_LED_ON_OFF() ;
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 uint8_t studentNum[13]="#:23765518:$\n" ;
-uint8_t recvd_char[1];
+char recvd_char[1];
+
+char set_or_ret_sys_state[19] = {' '} ;
+uint8_t num_characters = 0 ;
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
-	//transmit recvd characer
-	HAL_UART_Transmit(&huart2, recvd_char, 1, 50) ;
+	// store recieved characters one at at time
+	set_or_ret_sys_state[num_characters] = recvd_char[0] ;
 
-	// recieve character
-	HAL_UART_Receive_IT(&huart2, recvd_char, 1);
+	num_characters++ ;
+	if(recvd_char[0] == '\n'){
+		if(num_characters == 19){
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"set mode\n",9 ) ;
+		}else if( num_characters == 7){
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"request mode\n", 13) ;
+		}else{
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Incorrect status request size\n", 30) ;
+		}
+
+		num_characters =  0;
+
+	}
+
+
+	// recieve character - re-prime receiver to receive single characters at a time
+	HAL_UART_Receive_IT(&huart2, (uint8_t*)recvd_char, 1);
+
+
 }
 
 /**
@@ -218,6 +239,9 @@ void right_button_state_update(){
 	}
 }
 
+/**
+ * Middle button press turns LED ON/OFF
+ */
 void TURN_LED_ON_OFF(){
 	if(middle_button_pressed == 1){
 		 LED_ON = !LED_ON ;  // turns the LED on OR off
@@ -267,7 +291,8 @@ int main(void)
   HAL_Delay(200);
   HAL_UART_Transmit(&huart2, studentNum, 13, 150); //transmit student number
 
-  HAL_UART_Receive_IT(&huart2, recvd_char, 1); //recv character input
+//  HAL_UART_Receive_IT(&huart2, (uint8_t*)set_or_ret_sys_state, 1); //recv character input
+  HAL_UART_Receive_IT(&huart2, (uint8_t*)recvd_char, 1);
 
   //Startup ADC
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, adc_buf_len) ;
@@ -323,7 +348,7 @@ int main(void)
 	 }else if(button_count == 1){// right button system state updated
 		 ME_mode_LED() ; // sets the corresponding modes LED
 
-		 if(update_led_via_ADC == 1){
+		 if(update_led_via_ADC == 1 && LED_ON ==1){
 			 sprintf(adc_val, "%d\n", scaled_adc_val) ;
 			 HAL_UART_Transmit_IT(&huart2, (uint8_t*)adc_val, strlen(adc_val)) ;
 		 }
