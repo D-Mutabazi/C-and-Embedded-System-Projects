@@ -46,6 +46,8 @@ ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart2;
 
@@ -98,7 +100,14 @@ uint8_t space_between_words = 1 ;
 uint8_t DOT = 1 ;
 uint8_t DASH = 1 ;
 uint8_t next_char_check = 0 ; //  check if the next character is a dot or dash
+uint8_t next_char_checked = 0 ;
 char SOS[] = ". . . - - - . . ." ; // SOS Morse code ;
+
+char character = '\0' ;
+
+// Mood mode
+uint8_t MM_mode_default = 1;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -108,6 +117,8 @@ static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 void MF_mode_LED() ;
 void ME_mode_LED();
@@ -115,9 +126,7 @@ void MM_mode_LED();
 
 void adc_dma_val_processing() ;
 
-void Space_In_Letters()  ;
-void Dot_delay();
-
+void TURN_LED_ON_OFF() ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -209,50 +218,15 @@ void right_button_state_update(){
 	}
 }
 
-// SOS Morse Encoding
-void Dot_delay(){
-	htim2.Instance->CCR1 = 512; //
+void TURN_LED_ON_OFF(){
+	if(middle_button_pressed == 1){
+		 LED_ON = !LED_ON ;  // turns the LED on OR off
 
-	if(HAL_GetTick() - morse_current_time > time_unit){
-		morse_current_time =  HAL_GetTick() ;
-//		space_in_letter =  1;
-	}
-
-//	if(space_in_letter){
-//		Space_In_Letters() ;
-//	}
-
+		 middle_button_pressed = 0 ;
+	 }
 }
 
-void DASH_Delay(){
-	if(HAL_GetTick() - morse_current_time >3*time_unit){
-		htim2.Instance->CCR1 = 512 ;
-	}
 
-}
-
-void Space_In_Letters(){
-	htim2.Instance->CCR1 = 0 ;
-	if(HAL_GetTick() - morse_current_time > time_unit){
-		morse_current_time =  HAL_GetTick() ;
-//		space_in_letter = 0;
-	}
-
-}
-
-void Space_Between_Letters(){
-	if(HAL_GetTick() - morse_current_time >3*time_unit){
-		htim2.Instance->CCR1= 0 ;
-	}
-
-}
-
-void Space_Between_Words(){
-	if(HAL_GetTick() - morse_current_time >7*time_unit){
-		htim2.Instance->CCR1 = 0 ;
-	}
-
-}
 /* USER CODE END 0 */
 
 /**
@@ -262,7 +236,6 @@ void Space_Between_Words(){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	char sos[] = ". . ." ;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -287,6 +260,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_Delay(200);
@@ -299,9 +274,15 @@ int main(void)
 
   // TIM2_CH1 start PWM
   HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1) ;
+  // TIM2_CH4 start PWM - red LED
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4) ;
+  // TIM3_CH4 start PWM - GREEN LED
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+  // TIM4_CH1 start PWM - BLUE LED
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1) ;
 
   strobe_ticks  = HAL_GetTick() ;
-//  int i = 0 ;
+
   //
   /* USER CODE END 2 */
 
@@ -313,7 +294,8 @@ int main(void)
 	  system_state_update() ;
 	  //run adc and capture previous snapshot of ADC value and adc movement processing
 	  adc_dma_val_processing();
-
+	  // Turn LED ON/OFF
+	  TURN_LED_ON_OFF() ;
 
 	 // system state
 	 if(button_count == 0 || start_up == 1){
@@ -324,16 +306,12 @@ int main(void)
 		 em_default = 1; // to re-enter the EM state
 
 		 // Middle button press -> LED ON / OFF
-		 if(middle_button_pressed == 1){
-			 LED_ON = !LED_ON ;  // turns the LED on of off
-
-			 if(LED_ON == 1){
-				 htim2.Instance->CCR1 = 1 ; // LED ON
-			 }else if(LED_ON ==0){
-				 htim2.Instance->CCR1 = 0 ; //LED OFFS
-			 }
-			 middle_button_pressed = 0 ;
+		 if(LED_ON == 1){
+			 htim2.Instance->CCR1 = 1 ; // LED ON
+		 }else if(LED_ON ==0){
+			 htim2.Instance->CCR1 = 0 ; //LED OFFS
 		 }
+
 
 		 // if LED_ON and SLIDER MOVED -> updated LED intensity
 		if(LED_ON == 1 && update_led_via_ADC == 1){
@@ -345,22 +323,39 @@ int main(void)
 	 }else if(button_count == 1){// right button system state updated
 		 ME_mode_LED() ; // sets the corresponding modes LED
 
-
 		 if(update_led_via_ADC == 1){
 			 sprintf(adc_val, "%d\n", scaled_adc_val) ;
 			 HAL_UART_Transmit_IT(&huart2, (uint8_t*)adc_val, strlen(adc_val)) ;
 		 }
 	 }else{
-		 if(button_count == 2){
-
+		 if(button_count == 2){ // Mood Mode
+			 // SET THE NECESSARY STATES
 			 em_count=0; // reset the emergency mode state
 			 em_default = 1; // to re-enter EM state
 
 			 MM_mode_LED() ; //sets the corresponding modes LED
+
+			 if(LED_ON == 1){
+				 // set to channel intensities to default values
+				 // no longer default mode - reset back to default in other states?
+				 //red channel
+				 htim2.Instance->CCR4 = 128 ;
+				 // GREEN channel
+				 htim3.Instance->CCR4 = 128 ;
+				 // BLUE channel
+				 htim4.Instance->CCR1 = 128 ;
+
+
+			 }else{
+				 // put all channels off
+				 htim2.Instance->CCR4 =  0;
+				 htim3.Instance->CCR4 = 0 ;
+				 htim4.Instance->CCR1 = 0 ;
+			 }
+
 		 }
 	 }
 
-//	 strobe_ticks = HAL_GetTick() ;
 	 // right button state update
 	 right_button_state_update() ;
 	 //EMERGENCY MODES
@@ -397,57 +392,47 @@ int main(void)
 
 					 htim2.Instance->CCR1 = 512 ;
 					 timePassed = HAL_GetTick() - morse_current_time ;
-					 if(HAL_GetTick() - morse_current_time >= time_unit){
+					 if(HAL_GetTick() - morse_current_time >= time_unit ){
 						 morse_current_time = HAL_GetTick() ;
 
 						 DOT=0;
 						 DASH =0 ;
-
 						 space_in_letter = 1 ;
 
-//						 continue ;  //continue to the next iteration
 					 }
 				 }
-				 else if(SOS[i] =='-' && DASH == 1){
+				 else if(SOS[i] =='-'  && DASH == 1){
 
 					 htim2.Instance->CCR1 = 512 ;
-					 if(HAL_GetTick() - morse_current_time >= 3*time_unit){
+					 if(HAL_GetTick() - morse_current_time >= 3*time_unit  ){
 						 morse_current_time = HAL_GetTick() ;
 
 						 DOT =  0 ;
 						 DASH = 0 ;
 						 space_in_letter = 1 ;
 
-//						 continue ; // continue to the next loop iteration
-
 					 }
 				 }
-				 else if(SOS[i]== ' ' && space_in_letter ==1 ){
+				 else if(SOS[i]== ' '   && space_in_letter ==1){
 
 					 htim2.Instance->CCR1 = 0 ;
 
-					 if(HAL_GetTick() - morse_current_time >= time_unit){
+					 if(HAL_GetTick() - morse_current_time >= time_unit ){
 						 morse_current_time = HAL_GetTick() ;
 						 space_in_letter = 0 ;
 
 						 //NEXT CHARACTER CHECK
-//						 if(SOS[i++] == '.'){
-//							 DOT =1 ;
-//						 }
-//						 else if(SOS[i++] == '-' ){
-//							 DASH = 1;
-//						 }
-						 next_char_check  = 1 ;
-						 DOT= 1 ;
-						 DASH =1;
-//						 continue ; //continue to the next iteration
+						 next_char_check = i ;
+						 next_char_check++ ;
+						 if(SOS[next_char_check] == '.' && DOT == 0 ){
+							 DOT= 1 ;
+						 }else if(SOS[next_char_check] == '-' && DASH == 0){
+							 DASH =1;
+
+						 }
+
 					 }
-//					 if(next_char_check == 1){
-//						 next_char_check = 0 ;
-//						 if(SOS[i++] == '.'){
-//							 DOT = 1;
-//						 }
-//					 }
+
 				 }
 				 else{
 					 if(SOS[i]== '\0'){
@@ -455,13 +440,15 @@ int main(void)
 						 htim2.Instance->CCR1 = 0 ;
 						 if(HAL_GetTick() - morse_current_time >= 3*time_unit){
 							morse_current_time = HAL_GetTick() ;
-//							continue ;  // continue to the next iteration or reset index?
 
 						 }
 					 }
 				 }
+				 if(next_char_checked == 1){
+					 character = SOS[i++] ;
+					 next_char_checked = 0;
+				 }
 			 }
-//			 Space_Between_Letters() ;
 		 }
 		 else{
 			 if(em_count == 2){ // CUSTOM MORSE
@@ -515,10 +502,11 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_ADC12
-                              |RCC_PERIPHCLK_TIM2;
+                              |RCC_PERIPHCLK_TIM2|RCC_PERIPHCLK_TIM34;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12PLLCLK_DIV1;
   PeriphClkInit.Tim2ClockSelection = RCC_TIM2CLK_HCLK;
+  PeriphClkInit.Tim34ClockSelection = RCC_TIM34CLK_HCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -643,10 +631,132 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
   HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 36;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 512;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 36;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 65535;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+  HAL_TIM_MspPostInit(&htim4);
 
 }
 
