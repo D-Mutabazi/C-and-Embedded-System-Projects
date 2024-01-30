@@ -127,6 +127,7 @@ void MM_mode_LED();
 void adc_dma_val_processing() ;
 
 void TURN_LED_ON_OFF() ;
+void EM_mode_Strobe(uint16_t strobe_delay) ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -136,6 +137,16 @@ char recvd_char[1];
 
 char set_or_ret_sys_state[19] = {' '} ;
 uint8_t num_characters = 0 ;
+uint8_t UART_set_syst_state = 0;  // FLAG - to update system state
+uint8_t UART_ret_sys_state = 0;   // FLAG - to requets/return current system state
+
+uint16_t state  = 0 ;
+uint16_t param1 = 0 ;
+uint16_t param2 = 0 ;
+
+char STATE[3] = {' '} ;
+char PARAM1[3] = {' '} ;
+char PARAM2[3] ={' '};
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
@@ -143,11 +154,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	set_or_ret_sys_state[num_characters] = recvd_char[0] ;
 
 	num_characters++ ;
+
 	if(recvd_char[0] == '\n'){
 		if(num_characters == 19){
 			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"set mode\n",9 ) ;
+			UART_set_syst_state = 1 ;
 		}else if( num_characters == 7){
 			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"request mode\n", 13) ;
+			UART_ret_sys_state = 1 ;
 		}else{
 			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Incorrect status request size\n", 30) ;
 		}
@@ -198,9 +212,10 @@ void adc_dma_val_processing(){
 
 }
 
-
 void system_state_update(){
-	 if(left_button_pressed ==1 ){
+	 if(left_button_pressed ==1 && UART_set_syst_state == 0 ){
+		 UART_set_syst_state = 0 ;  // re-prime to receive next state update
+
 		 button_count++ ;
 		 if(button_count > 2){
 			 button_count = 0 ;
@@ -214,6 +229,22 @@ void system_state_update(){
 		 // LED off at each new state
 		 htim2.Instance->CCR1 = 0;
 		 left_button_pressed = 0 ;
+
+	 }else if( UART_set_syst_state == 1 && left_button_pressed == 0){ // System state update to come from only one source
+		 UART_set_syst_state = 0 ;
+
+		 if(set_or_ret_sys_state[3] == 'F'){
+			 button_count =0 ;
+		 }
+		 else if(set_or_ret_sys_state[3] =='E'){
+			 button_count =1;
+
+		 }else{
+			 if(set_or_ret_sys_state[3] == 'M'){
+				 button_count =2 ;
+
+			 }
+		 }
 	 }
 }
 
@@ -250,7 +281,79 @@ void TURN_LED_ON_OFF(){
 	 }
 }
 
+/**
+ * LED strobed with provided number of ms
+ */
+void EM_mode_Strobe(uint16_t strobe_delay){
 
+	 // default delay 512ms
+	 timePassed =HAL_GetTick() - strobe_ticks ;
+	 // time passed >512
+	 if( timePassed >= strobe_delay && led_strobe_on == 0){
+		 led_strobe_on =1 ;
+		 htim2.Instance->CCR1 = 0 ;
+	 }
+	 // time Passed > 1024
+	 if(timePassed >= 1024 && led_strobe_on == 1){
+		 strobe_ticks =  HAL_GetTick() ; // update current time
+		 led_strobe_on = 0 ;
+
+
+		 if(update_led_via_ADC ==1){ // update LED intensity if the slider moved
+			 htim2.Instance->CCR1 = LED_intensity ;
+		 }else{ // if no slider movement strobe with default intensity
+			 htim2.Instance->CCR1 =256;
+		 }
+	 }
+
+}
+
+void convert_UART_state_params_to_Int(){
+	if(UART_set_syst_state) {
+		for(int i = 0; i < 19 ; i++){
+			switch(i){
+			case 5:
+				STATE[0]= set_or_ret_sys_state[i] ;
+				break;
+			case 6:
+				STATE[1]= set_or_ret_sys_state[i] ;
+				break;
+			case 7:
+				STATE[2] = set_or_ret_sys_state[i] ;
+				break;
+
+			case 9:
+				PARAM1[0] = set_or_ret_sys_state[i];
+				break;
+			case 10:
+				PARAM1[1] = set_or_ret_sys_state[i] ;
+				break;
+			case 11:
+				PARAM1[2] = set_or_ret_sys_state[i] ;
+				break ;
+			case 13:
+				PARAM2[0] = set_or_ret_sys_state[i] ;
+				break;
+			case 14:
+				PARAM2[1] = set_or_ret_sys_state[i] ;
+				break;
+			case 15:
+				PARAM2[2] = set_or_ret_sys_state[i ];
+				break;
+
+			default:
+				break ;
+			}
+
+		}
+
+		state = atoi(STATE) ;
+		param1 = atoi(PARAM1);
+		param2 = atoi(PARAM2) ;
+//		UART_set_syst_state = 0 ; // re-prime to recieve next instruction if system mode not changed
+
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -321,14 +424,18 @@ int main(void)
 	  adc_dma_val_processing();
 	  // Turn LED ON/OFF
 	  TURN_LED_ON_OFF() ;
+	  // read UART params
+	  convert_UART_state_params_to_Int() ;
 
 	 // system state
-	 if(button_count == 0 || start_up == 1){
+	 if(button_count == 0 || start_up == 1 ){
+
 		 start_up = 0 ; //for default MF state
 
 		 MF_mode_LED() ; // sets the corresponding mode LED
 		 em_count=0;     // reset the emergency mode count
 		 em_default = 1; // to re-enter the EM state
+
 
 		 // Middle button press -> LED ON / OFF
 		 if(LED_ON == 1){
@@ -337,21 +444,16 @@ int main(void)
 			 htim2.Instance->CCR1 = 0 ; //LED OFFS
 		 }
 
-
 		 // if LED_ON and SLIDER MOVED -> updated LED intensity
 		if(LED_ON == 1 && update_led_via_ADC == 1){
 		  htim2.Instance->CCR1 =  LED_intensity ; // vary the duty cycle of the LED [1:512]
-		  sprintf(adc_val, "%d\n", scaled_adc_val) ;
-		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)adc_val, strlen(adc_val)) ;
+
 		}
 
-	 }else if(button_count == 1){// right button system state updated
+	 }else if(button_count == 1 ){// right button system state updated
 		 ME_mode_LED() ; // sets the corresponding modes LED
 
-		 if(update_led_via_ADC == 1 && LED_ON ==1){
-			 sprintf(adc_val, "%d\n", scaled_adc_val) ;
-			 HAL_UART_Transmit_IT(&huart2, (uint8_t*)adc_val, strlen(adc_val)) ;
-		 }
+
 	 }else{
 		 if(button_count == 2){ // Mood Mode
 			 // SET THE NECESSARY STATES
@@ -373,8 +475,11 @@ int main(void)
 
 			 }else{
 				 // put all channels off
+				 //red channel
 				 htim2.Instance->CCR4 =  0;
+				 // GREEN channel
 				 htim3.Instance->CCR4 = 0 ;
+				 // BLUE channel
 				 htim4.Instance->CCR1 = 0 ;
 			 }
 
@@ -392,20 +497,8 @@ int main(void)
 
 
 			 if(LED_ON){ //LED_on =?
-				 // default delay 512ms
-				 timePassed =HAL_GetTick() - strobe_ticks ;
-				 // time passed >512
-				 if( timePassed >= strobe_delay && led_strobe_on == 0){
-					 led_strobe_on =1 ;
-					 htim2.Instance->CCR1 = 0 ;
-				 }
-				 // time Passed > 1024
-				 if(timePassed >= 1024 && led_strobe_on == 1){
-					 strobe_ticks =  HAL_GetTick() ; // update current time
-					 led_strobe_on = 0 ;
-
-					 htim2.Instance->CCR1 =256;
-				 }
+				 // strobe LED with provided on time
+				 EM_mode_Strobe(strobe_delay) ;
 			 }
 		 }
 		 else if(em_count ==1){ // SOS MOSRE
