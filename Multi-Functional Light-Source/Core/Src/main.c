@@ -139,6 +139,7 @@ char set_or_ret_sys_state[19] = {' '} ;
 uint8_t num_characters = 0 ;
 uint8_t UART_set_syst_state = 0;  // FLAG - to update system state
 uint8_t UART_ret_sys_state = 0;   // FLAG - to requets/return current system state
+uint8_t UART_state_update = 0;
 
 uint16_t state  = 0 ;
 uint16_t param1 = 0 ;
@@ -214,7 +215,6 @@ void adc_dma_val_processing(){
 
 void system_state_update(){
 	 if(left_button_pressed ==1 && UART_set_syst_state == 0 ){
-		 UART_set_syst_state = 0 ;  // re-prime to receive next state update
 
 		 button_count++ ;
 		 if(button_count > 2){
@@ -226,12 +226,12 @@ void system_state_update(){
 			 adc_val_capture =1  ; // capture ADC value
 		 }
 
-		 // LED off at each new state
-		 htim2.Instance->CCR1 = 0;
+
 		 left_button_pressed = 0 ;
 
 	 }else if( UART_set_syst_state == 1 && left_button_pressed == 0){ // System state update to come from only one source
-		 UART_set_syst_state = 0 ;
+		 UART_set_syst_state = 0;
+		 UART_state_update =1;
 
 		 if(set_or_ret_sys_state[3] == 'F'){
 			 button_count =0 ;
@@ -276,6 +276,13 @@ void right_button_state_update(){
 void TURN_LED_ON_OFF(){
 	if(middle_button_pressed == 1){
 		 LED_ON = !LED_ON ;  // turns the LED on OR off
+
+		 // Middle button press -> LED ON / OFF
+		 if(LED_ON == 1){
+			 htim2.Instance->CCR1 = 1 ; // LED ON
+		 }else if(LED_ON ==0){
+			 htim2.Instance->CCR1 = 0 ; //LED OFFS
+		 }
 
 		 middle_button_pressed = 0 ;
 	 }
@@ -350,7 +357,6 @@ void convert_UART_state_params_to_Int(){
 		state = atoi(STATE) ;
 		param1 = atoi(PARAM1);
 		param2 = atoi(PARAM2) ;
-//		UART_set_syst_state = 0 ; // re-prime to recieve next instruction if system mode not changed
 
 	}
 }
@@ -394,7 +400,6 @@ int main(void)
   HAL_Delay(200);
   HAL_UART_Transmit(&huart2, studentNum, 13, 150); //transmit student number
 
-//  HAL_UART_Receive_IT(&huart2, (uint8_t*)set_or_ret_sys_state, 1); //recv character input
   HAL_UART_Receive_IT(&huart2, (uint8_t*)recvd_char, 1);
 
   //Startup ADC
@@ -411,7 +416,6 @@ int main(void)
 
   strobe_ticks  = HAL_GetTick() ;
 
-  //
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -436,18 +440,26 @@ int main(void)
 		 em_count=0;     // reset the emergency mode count
 		 em_default = 1; // to re-enter the EM state
 
+		if(LED_ON == 1){
+			 // if LED_ON and SLIDER MOVED -> updated LED intensity
+			if(update_led_via_ADC == 1 && UART_state_update == 0){
 
-		 // Middle button press -> LED ON / OFF
-		 if(LED_ON == 1){
-			 htim2.Instance->CCR1 = 1 ; // LED ON
-		 }else if(LED_ON ==0){
-			 htim2.Instance->CCR1 = 0 ; //LED OFFS
-		 }
+			  htim2.Instance->CCR1 =  LED_intensity ; // vary the duty cycle of the LED [1:512]
+			}
+			else{
 
-		 // if LED_ON and SLIDER MOVED -> updated LED intensity
-		if(LED_ON == 1 && update_led_via_ADC == 1){
-		  htim2.Instance->CCR1 =  LED_intensity ; // vary the duty cycle of the LED [1:512]
+				if(UART_state_update == 1 && state > 0 ){
 
+					if(adc_conv_complete == 1){
+						adc_val_capture = 1 ; // capture slider value
+						update_led_via_ADC = 0 ; // dont read until slider moved
+					}
+					htim2.Instance->CCR1 = state ;
+//					UART_set_syst_state = 0;
+					UART_state_update = 0;
+				}
+
+			}
 		}
 
 	 }else if(button_count == 1 ){// right button system state updated
