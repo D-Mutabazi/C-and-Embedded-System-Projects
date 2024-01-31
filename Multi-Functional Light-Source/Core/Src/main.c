@@ -77,11 +77,11 @@ uint16_t LED_intensity = 1 ;
 
 /**Emergency mode*/
 // STROBE
-uint16_t strobe_delay =  300 ; // UNIT = ms f = 0.9765HZ (default on time)
+uint16_t strobe_delay =  512 ; // UNIT = ms f = 0.9765HZ (default on time)
 uint32_t strobe_ticks = 0 ; // strobe delay count
 uint8_t led_strobe_on = 0 ; // flag to alternate between on/off in strobe
 uint32_t timePassed = 0 ;
-
+uint16_t strobe_led_Intensity = 256 ;
 //SOS morse
 char letter[]={'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S'
 					,'T','U','V','W','X','Y','Z', '1','2','3','4','5','6','7','8','9','0'} ;
@@ -107,7 +107,9 @@ char character = '\0' ;
 
 // Mood mode
 uint8_t MM_mode_default = 1;
-
+uint16_t R_channel_Intensity= 128;
+uint16_t G_channel_Intensity = 128;
+uint16_t B_channel_Intensity = 128 ;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -128,6 +130,8 @@ void adc_dma_val_processing() ;
 
 void TURN_LED_ON_OFF() ;
 void EM_mode_Strobe(uint16_t strobe_delay) ;
+void Emergency_Mode_State_Update();
+void Mood_Mode_State_Update() ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -140,7 +144,7 @@ uint8_t num_characters = 0 ;
 uint8_t UART_set_syst_state = 0;  // FLAG - to update system state
 uint8_t UART_ret_sys_state = 0;   // FLAG - to requets/return current system state
 uint8_t UART_state_update = 0;
-
+uint8_t custom_morse_msg_rcvd = 0 ;  // Indicates whether a custom morse msg been received
 uint16_t state  = 0 ;
 uint16_t param1 = 0 ;
 uint16_t param2 = 0 ;
@@ -148,6 +152,7 @@ uint16_t param2 = 0 ;
 char STATE[3] = {' '} ;
 char PARAM1[3] = {' '} ;
 char PARAM2[3] ={' '};
+char Custom_Morse_Msg[3] = {' '};
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
@@ -224,6 +229,12 @@ void system_state_update(){
 		 // snapshot of ADC taken in next state
 		 if(adc_conv_complete == 1){
 			 adc_val_capture =1  ; // capture ADC value
+		 }
+
+		 // Emergency MODE DEFAULT
+		 if(button_count != 1){
+			 strobe_led_Intensity = 256 ;
+			 strobe_delay = 512;
 		 }
 
 
@@ -309,12 +320,14 @@ void EM_mode_Strobe(uint16_t strobe_delay){
 		 if(update_led_via_ADC ==1){ // update LED intensity if the slider moved
 			 htim2.Instance->CCR1 = LED_intensity ;
 		 }else{ // if no slider movement strobe with default intensity
-			 htim2.Instance->CCR1 =256;
+			 htim2.Instance->CCR1 = strobe_led_Intensity;
 		 }
 	 }
 
-}
+	 // restore
 
+}
+int klm = 1 ;
 void convert_UART_state_params_to_Int(){
 	if(UART_set_syst_state) {
 		for(int i = 0; i < 19 ; i++){
@@ -356,8 +369,80 @@ void convert_UART_state_params_to_Int(){
 
 		state = atoi(STATE) ;
 		param1 = atoi(PARAM1);
-		param2 = atoi(PARAM2) ;
+		// problem - perform check for if non integer characters are passed!
+		if(strcmp(PARAM2, "000") == 0 && set_or_ret_sys_state[3] == 'E'){
 
+			param2 = atoi(PARAM2) ;  // SOS MORSE OUTPUT
+		}
+		else if( strcmp(PARAM2, "000") != 0 && set_or_ret_sys_state[3] == 'E' ){
+
+			Custom_Morse_Msg[0] = PARAM2[0] ; // CUSTOM MORSE output - declare variable to store the output
+			Custom_Morse_Msg[1] = PARAM2[1] ;
+			Custom_Morse_Msg[2] = PARAM2[2] ;
+
+			custom_morse_msg_rcvd = 1;
+		}
+		else{
+			param2 = atoi(PARAM2) ;
+		}
+
+	}
+}
+
+/**
+ * Function updates the necessary states/ values when UART command reached to
+ * update the system state
+ */
+void Emergency_Mode_State_Update(){
+
+	if(UART_state_update == 1 && state > 0 && set_or_ret_sys_state[3] =='E'){
+		// Dont read ADC
+		if(adc_conv_complete == 1){
+			adc_val_capture = 1 ; // capture slider value
+			update_led_via_ADC = 0 ; // dont read until slider moved
+		}
+
+		//update LED intensity
+		strobe_led_Intensity = state;
+
+		// strobe
+		if(param1 > 0 ){
+			em_count = 0 ;
+			strobe_delay = param1 ;  // update the ON/off time of strobe
+
+		}
+		// SOS output
+		else if(param1 == 0 && param2 == 0 && custom_morse_msg_rcvd == 0 ){
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"SOS MORSE\n", 10) ;
+			em_count =1 ; // SOS mode
+		}
+		// CUSTOM morse msg received
+		else{
+			if(param1 == 0 && custom_morse_msg_rcvd ==1 ){
+				custom_morse_msg_rcvd = 0;
+				HAL_UART_Transmit_IT(&huart2, (uint8_t*)"CUSTOM MORSE\n", 13) ;
+				em_count = 2 ; // CUSTOM MORSE
+
+			}
+		}
+
+		UART_state_update = 0;
+	}
+
+}
+
+void Mood_Mode_State_Update(){
+	if(UART_state_update ==1  && set_or_ret_sys_state[3] == 'M'){
+
+		// set R channel intensity
+		R_channel_Intensity = state ;
+		// set G channel intensity
+		G_channel_Intensity = param1 ;
+		// set B channel intensity
+		B_channel_Intensity = param2 ;
+
+
+		UART_state_update = 0;
 	}
 }
 /* USER CODE END 0 */
@@ -448,7 +533,7 @@ int main(void)
 			}
 			else{
 
-				if(UART_state_update == 1 && state > 0 ){
+				if(UART_state_update == 1 && state > 0 && set_or_ret_sys_state[3] =='F' ){
 
 					if(adc_conv_complete == 1){
 						adc_val_capture = 1 ; // capture slider value
@@ -465,6 +550,7 @@ int main(void)
 	 }else if(button_count == 1 ){// right button system state updated
 		 ME_mode_LED() ; // sets the corresponding modes LED
 
+		 Emergency_Mode_State_Update() ;
 
 	 }else{
 		 if(button_count == 2){ // Mood Mode
@@ -474,15 +560,16 @@ int main(void)
 
 			 MM_mode_LED() ; //sets the corresponding modes LED
 
+			 Mood_Mode_State_Update() ; // update the necessary MM states
 			 if(LED_ON == 1){
 				 // set to channel intensities to default values
 				 // no longer default mode - reset back to default in other states?
 				 //red channel
-				 htim2.Instance->CCR4 = 128 ;
+				 htim2.Instance->CCR4 = R_channel_Intensity ;
 				 // GREEN channel
-				 htim3.Instance->CCR4 = 128 ;
+				 htim3.Instance->CCR4 = G_channel_Intensity ;
 				 // BLUE channel
-				 htim4.Instance->CCR1 = 128 ;
+				 htim4.Instance->CCR1 = B_channel_Intensity ;
 
 
 			 }else{
