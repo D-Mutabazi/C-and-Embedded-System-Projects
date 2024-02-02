@@ -148,11 +148,30 @@ uint8_t custom_morse_msg_rcvd = 0 ;  // Indicates whether a custom morse msg bee
 uint16_t state  = 0 ;
 uint16_t param1 = 0 ;
 uint16_t param2 = 0 ;
-
+uint8_t READ_SYS = 0;
 char STATE[3] = {' '} ;
 char PARAM1[3] = {' '} ;
 char PARAM2[3] ={' '};
 char Custom_Morse_Msg[3] = {' '};
+
+// Variables to remember previous state of system
+// Flashlight mode state values
+uint16_t MF_state = 0 ;
+uint16_t MF_param1 = 0;
+uint16_t MF_param2 = 0 ;
+// Emergency mode state values
+uint16_t ME_state = 0 ;
+uint16_t ME_param1 = 0 ;
+char ME_param2[3] = {' '} ;
+// Mood mode state values
+uint16_t MM_state = 0;
+uint16_t MM_param1 = 0 ;
+uint16_t MM_param2 = 0 ;
+
+// return system state
+char ret_state[3] = {' '} ;
+char ret_param1[3] = {' ' };
+char ret_param2[3] = {' '} ;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
@@ -175,12 +194,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 		num_characters =  0;
 
 	}
-
-
 	// recieve character - re-prime receiver to receive single characters at a time
 	HAL_UART_Receive_IT(&huart2, (uint8_t*)recvd_char, 1);
-
-
 }
 
 /**
@@ -214,12 +229,10 @@ void adc_dma_val_processing(){
 
 //	 WHITE LED intensity
 	LED_intensity =(float)(scaled_adc_val)*(512.0/4095.0)  ;
-
-
 }
 
 void system_state_update(){
-	 if(left_button_pressed ==1 && UART_set_syst_state == 0 ){
+	 if(left_button_pressed ==1 && UART_set_syst_state == 0 && UART_ret_sys_state == 0 ){
 
 		 button_count++ ;
 		 if(button_count > 2){
@@ -237,10 +250,9 @@ void system_state_update(){
 			 strobe_delay = 512;
 		 }
 
-
 		 left_button_pressed = 0 ;
 
-	 }else if( UART_set_syst_state == 1 && left_button_pressed == 0){ // System state update to come from only one source
+	 }else if( UART_set_syst_state == 1 && left_button_pressed == 0 && UART_ret_sys_state ==0){ // System state update to come from only one source
 		 UART_set_syst_state = 0;
 		 UART_state_update =1;
 
@@ -255,6 +267,12 @@ void system_state_update(){
 				 button_count =2 ;
 
 			 }
+		 }
+	 }else{ //dont update the system in any way - read current and previous states
+		 if( UART_set_syst_state == 0 && left_button_pressed == 0 && UART_ret_sys_state ==1){
+			 UART_ret_sys_state = 0;
+			 READ_SYS =1;
+
 		 }
 	 }
 }
@@ -316,7 +334,6 @@ void EM_mode_Strobe(uint16_t strobe_delay){
 		 strobe_ticks =  HAL_GetTick() ; // update current time
 		 led_strobe_on = 0 ;
 
-
 		 if(update_led_via_ADC ==1){ // update LED intensity if the slider moved
 			 htim2.Instance->CCR1 = LED_intensity ;
 		 }else{ // if no slider movement strobe with default intensity
@@ -327,7 +344,6 @@ void EM_mode_Strobe(uint16_t strobe_delay){
 	 // restore
 
 }
-int klm = 1 ;
 void convert_UART_state_params_to_Int(){
 	if(UART_set_syst_state) {
 		for(int i = 0; i < 19 ; i++){
@@ -441,8 +457,63 @@ void Mood_Mode_State_Update(){
 		// set B channel intensity
 		B_channel_Intensity = param2 ;
 
-
 		UART_state_update = 0;
+	}
+}
+
+void Request_return_system_state(){
+
+	// problem might have to manually insert characters into array
+	// consider the case a value is  2 or 1 digit , three characters
+	// wont be copied into the above array as needed
+	if(READ_SYS ==1 ){
+		// flash light mode
+		if(set_or_ret_sys_state[3] == 'F'){
+			/* here manual copy*/
+			sprintf(ret_state, "%d", MF_state) ;
+
+			sprintf(ret_param1, "%d", MF_param1) ;
+
+			sprintf(ret_param1, "%d", MF_param2) ;
+
+		}
+		// emergency mode
+		else if(set_or_ret_sys_state[3] == 'E'){
+			/* here manual copy*/
+			sprintf(ret_state, "%d",ME_state) ;
+			sprintf(ret_param1, "%d", ME_param1);
+			// check whether param2 was 0 OR CUSTOM morse message recvd
+			if(strcmp(Custom_Morse_Msg, "000") == 0){
+
+//				sprintf(ret_param2,'%d', ME_param2) ;
+				strcpy(ret_param2, ME_param2) ;
+			}else{
+				ret_param2[0] = Custom_Morse_Msg[0];
+				ret_param2[1] = Custom_Morse_Msg[1] ;
+				ret_param2[2] = Custom_Morse_Msg[2] ;
+			}
+
+		}
+		// mood mode
+		else{
+			if(set_or_ret_sys_state[3] == 'M'){
+				/* here manual copy*/
+				sprintf(ret_state, "%d", MM_state) ;
+				sprintf(ret_param1, "%d", MM_param1) ;
+				sprintf(ret_param2, "%d", MM_param2) ;
+
+			}
+		}
+
+		// dont read ADC
+		if(adc_conv_complete == 1){
+			adc_val_capture = 1 ; // capture slider value
+			update_led_via_ADC = 0 ; // dont read until slider moved
+		}
+
+		transmit_system_state = 1;
+
+		READ_SYS = 0 ;
 	}
 }
 /* USER CODE END 0 */
@@ -516,6 +587,21 @@ int main(void)
 	  // read UART params
 	  convert_UART_state_params_to_Int() ;
 
+//	  if(UART_ret_sys_state == 1 && READ_SYS == 0){
+//			//dont read ADC + DONT update system
+//			READ_SYS = 1 ;
+//			UART_ret_sys_state = 0 ;
+//		}
+//	  else if (READ_SYS == 1 && UART_ret_sys_state == 0) {
+//	      HAL_UART_Transmit_IT(&huart2, (uint8_t*)"state transmission\n", 19);
+//	      READ_SYS = 0; // Reset READ_SYS after transmission
+//	      UART_ret_sys_state = 0; // Reset UART_ret_sys_state
+//	  }
+
+	  if(READ_SYS ==1){
+		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)"state transmission\n", 19);
+		  READ_SYS = 0;
+	  }
 	 // system state
 	 if(button_count == 0 || start_up == 1 ){
 
@@ -529,24 +615,25 @@ int main(void)
 			 // if LED_ON and SLIDER MOVED -> updated LED intensity
 			if(update_led_via_ADC == 1 && UART_state_update == 0){
 
-			  htim2.Instance->CCR1 =  LED_intensity ; // vary the duty cycle of the LED [1:512]
+				htim2.Instance->CCR1 =  LED_intensity ; // vary the duty cycle of the LED [1:512]
 			}
-			else{
+			else if(UART_state_update == 1 && state > 0 && set_or_ret_sys_state[3] =='F' ){
 
-				if(UART_state_update == 1 && state > 0 && set_or_ret_sys_state[3] =='F' ){
-
-					if(adc_conv_complete == 1){
-						adc_val_capture = 1 ; // capture slider value
-						update_led_via_ADC = 0 ; // dont read until slider moved
-					}
-					htim2.Instance->CCR1 = state ;
-//					UART_set_syst_state = 0;
-					UART_state_update = 0;
+				if(adc_conv_complete == 1){
+					adc_val_capture = 1 ; // capture slider value
+					update_led_via_ADC = 0 ; // dont read until slider moved
 				}
-
+				htim2.Instance->CCR1 = state ;
+				UART_state_update = 0;
 			}
+//			else{
+//				if(UART_ret_sys_state == 1 && set_or_ret_sys_state[3] == 'F' && UART_state_update ==0){
+//					//dont read ADC + DONT update system
+//					HAL_UART_Transmit_IT(&huart2, (uint8_t*)"state transmit\n", 15);
+//					UART_ret_sys_state = 0 ;
+//				}
+//			}
 		}
-
 	 }else if(button_count == 1 ){// right button system state updated
 		 ME_mode_LED() ; // sets the corresponding modes LED
 
