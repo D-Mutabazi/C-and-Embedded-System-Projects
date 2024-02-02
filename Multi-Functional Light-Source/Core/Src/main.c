@@ -233,6 +233,7 @@ void adc_dma_val_processing(){
 }
 
 void system_state_update(){
+	// button system state update
 	 if(left_button_pressed ==1 && UART_set_syst_state == 0 && UART_ret_sys_state == 0 ){
 
 		 button_count++ ;
@@ -253,7 +254,9 @@ void system_state_update(){
 
 		 left_button_pressed = 0 ;
 
-	 }else if( UART_set_syst_state == 1 && left_button_pressed == 0 && UART_ret_sys_state ==0){ // System state update to come from only one source
+	 }
+	 // UART system state update
+	 else if( UART_set_syst_state == 1 && left_button_pressed == 0 && UART_ret_sys_state ==0){ // System state update to come from only one source
 		 UART_set_syst_state = 0;
 		 UART_state_update =1;
 
@@ -269,8 +272,17 @@ void system_state_update(){
 
 			 }
 		 }
-	 }else{ //dont update the system in any way - read current and previous states
+	 }
+	 // read system state
+	 else{ //dont update the system in any way - read current and previous states
 		 if( UART_set_syst_state == 0 && left_button_pressed == 0 && UART_ret_sys_state ==1){
+
+			 // stop reading adc
+			if(adc_conv_complete == 1){
+				adc_val_capture = 1 ; // capture slider value
+				update_led_via_ADC = 0 ; // dont read until slider moved
+			}
+
 			 UART_ret_sys_state = 0;
 			 READ_SYS =1;
 
@@ -476,81 +488,128 @@ void Mood_Mode_State_Update(){
 		UART_state_update = 0;
 	}
 }
-int length = 0;
+char value[9] ;
 void Request_return_system_state(){
-
-	// problem might have to manually insert characters into array
-	// consider the case a value is  2 or 1 digit , three characters
-	// wont be copied into the above array as needed
 	if(READ_SYS ==1 ){
-		// dont read ADC
-		if(adc_conv_complete == 1){
-			adc_val_capture = 1 ; // capture slider value
-			update_led_via_ADC = 0 ; // dont read until slider moved
-		}
-
 		// flash light mode
 		if(set_or_ret_sys_state[3] == 'F'){
 			/* here manual copy*/
-			sprintf(ret_state, "%d\n", MF_state) ;
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_state, strlen(ret_state)) ;
-			sprintf(ret_param1, "%d\n", MF_param1) ;
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param1, strlen(ret_param1)) ;
+			ret_state[0] = MF_state/100 + 48 ; // hundred
+			ret_state[1] = (MF_state -(MF_state/100)*100)/10 + 48 ; //tens
+			ret_state[2] = (MF_state - (MF_state/10)*10) + 48 ;  //units
 
-			sprintf(ret_param2, "%d\n", MF_param2) ;
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param2, strlen(ret_param2)) ;
+			ret_param1[0] = MF_param1/100 + 48 ; // hundred
+			ret_param1[1] = (MF_param1 -(MF_param1/100)*100)/10 + 48 ; //tens
+			ret_param1[2] = (MF_param1 - (MF_param1/10)*10) + 48 ;  //units
+
+			ret_param2[0] = MF_param2/100 + 48 ; // hundred
+			ret_param2[1] = (MF_param2 -(MF_param2/100)*100)/10 + 48 ; //tens
+			ret_param2[2] = (MF_param2 - (MF_param2/10)*10) + 48 ;  //units
 
 
 		}
 		// emergency mode
 		else if(set_or_ret_sys_state[3] == 'E'){
 			/* here manual copy*/
-			sprintf(ret_state, "%d\n",ME_state) ;
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_state, strlen(ret_state)) ;
+			ret_state[0] = ME_state/100 + 48 ; // hundred
+			ret_state[1] = (MF_state -(MF_state/100)*100)/10 + 48 ; //tens
+			ret_state[2] = (MF_state - (MF_state/10)*10) + 48 ;  //units
 
-			sprintf(ret_param1, "%d\n", ME_param1);
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param1, strlen(ret_param1)) ;
+			ret_param1[0] = MF_param1/100 + 48 ; // hundred
+			ret_param1[1] = (MF_param1 -(MF_param1/100)*100)/10 + 48 ; //tens
+			ret_param1[2] = (MF_param1 - (MF_param1/10)*10) + 48 ;  //units
 
 			// check whether param2 was 0 OR CUSTOM morse message recvd
 			if(strcmp(Custom_Morse_Msg, "000") == 0){
 
-//				sprintf(ret_param2,'%d', ME_param2) ;
 				strcpy(ret_param2, ME_param2) ;
+
 
 			}else{
 				ret_param2[0] = Custom_Morse_Msg[0];
 				ret_param2[1] = Custom_Morse_Msg[1] ;
 				ret_param2[2] = Custom_Morse_Msg[2] ;
 			}
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param2, strlen(ret_param2)) ;
-
 
 		}
 		// mood mode
 		else{
 			if(set_or_ret_sys_state[3] == 'M'){
 				/* here manual copy*/
-				length =sprintf(ret_state, "%d\n", MM_state) ;
-//				HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_state, strlen(ret_state)) ;
+				ret_state[0] = MM_state/100 + 48 ; // hundred
+				ret_state[1] = (MM_state -(MM_state/100)*100)/10 + 48 ; //tens
+				ret_state[2] = (MM_state - (MM_state/10)*10) + 48 ;  //units
 
-				sprintf(ret_param1, "%d\n", MM_param1) ;
-//				HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param1, strlen(ret_param1)) ;
+				ret_param1[0] = MM_param1/100 + 48 ; // hundred
+				ret_param1[1] = (MM_param1 -(MM_param1/100)*100)/10 + 48 ; //tens
+				ret_param1[2] = (MM_param1 - (MM_param1/10)*10) + 48 ;  //units
 
-				sprintf(ret_param2, "%d\n", MM_param2) ;
-//				HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param2, strlen(ret_param2)) ;
+				ret_param2[0] = MM_param2/100 + 48 ; // hundred
+				ret_param2[1] = (MM_param2 -(MM_param2/100)*100)/10 + 48 ; //tens
+				ret_param2[2] = (MM_param2 - (MM_param2/10)*10) + 48 ;  //units
+
+			}
+		}
+		for(int i = 0; i<9  ; i++){
+			switch(i){
+			case 0:
+				value[i] = ret_state[0];
+
+				break ;
+			case 1:
+				value[i] = ret_state[1];
+
+				break ;
+			case 2:
+				value[i] = ret_state[2];
+
+			break ;
+
+			case 3:
+				value[i] = ret_param1[0];
+
+				break ;
+			case 4:
+				value[i] = ret_param1[1];
+
+				break ;
+			case 5:
+				value[i] = ret_param1[2];
+
+			break ;
+
+			case 6:
+				value[i] = ret_param2[0];
+
+				break ;
+			case 7:
+				value[i] = ret_param2[1];
+
+				break ;
+			case 8:
+				value[i] = ret_param2[2];
+
+			break ;
+
+			default:
+				break;
 
 			}
 		}
 
-		HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_state, strlen(ret_state)) ;
-		HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param1, strlen(ret_param1)) ;
-		HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param2, strlen(ret_param2)) ;
+		HAL_UART_Transmit_IT(&huart2, (uint8_t*)value, 9) ;
+
+//		HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_state, 3) ;
+//		HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param1, 3) ;
+//		HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param2, 3) ;
 
 
 
 		READ_SYS = 0 ;
 	}
 }
+
+
 /* USER CODE END 0 */
 
 /**
@@ -624,21 +683,6 @@ int main(void)
 	  // REAS sys state
 	  Request_return_system_state() ;
 
-//	  if(UART_ret_sys_state == 1 && READ_SYS == 0){
-//			//dont read ADC + DONT update system
-//			READ_SYS = 1 ;
-//			UART_ret_sys_state = 0 ;
-//		}
-//	  else if (READ_SYS == 1 && UART_ret_sys_state == 0) {
-//	      HAL_UART_Transmit_IT(&huart2, (uint8_t*)"state transmission\n", 19);
-//	      READ_SYS = 0; // Reset READ_SYS after transmission
-//	      UART_ret_sys_state = 0; // Reset UART_ret_sys_state
-//	  }
-
-//	  if(READ_SYS ==1){
-//		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)"state transmission\n", 19);
-//		  READ_SYS = 0;
-//	  }
 	 // system state
 	 if(button_count == 0 || start_up == 1 ){
 
@@ -667,13 +711,7 @@ int main(void)
 
 				UART_state_update = 0;
 			}
-//			else{
-//				if(UART_ret_sys_state == 1 && set_or_ret_sys_state[3] == 'F' && UART_state_update ==0){
-//					//dont read ADC + DONT update system
-//					HAL_UART_Transmit_IT(&huart2, (uint8_t*)"state transmit\n", 15);
-//					UART_ret_sys_state = 0 ;
-//				}
-//			}
+
 		}
 	 }else if(button_count == 1 ){// right button system state updated
 		 ME_mode_LED() ; // sets the corresponding modes LED
