@@ -132,6 +132,7 @@ void TURN_LED_ON_OFF() ;
 void EM_mode_Strobe(uint16_t strobe_delay) ;
 void Emergency_Mode_State_Update();
 void Mood_Mode_State_Update() ;
+void Request_return_system_state() ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -470,11 +471,14 @@ void Request_return_system_state(){
 		// flash light mode
 		if(set_or_ret_sys_state[3] == 'F'){
 			/* here manual copy*/
-			sprintf(ret_state, "%d", MF_state) ;
+			sprintf(ret_state, "%d\n", MF_state) ;
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_state, strlen(ret_state)) ;
+			sprintf(ret_param1, "%d\n", MF_param1) ;
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param1, strlen(ret_param1)) ;
 
-			sprintf(ret_param1, "%d", MF_param1) ;
+			sprintf(ret_param2, "%d\n", MF_param2) ;
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param2, strlen(ret_param2)) ;
 
-			sprintf(ret_param1, "%d", MF_param2) ;
 
 		}
 		// emergency mode
@@ -511,7 +515,6 @@ void Request_return_system_state(){
 			update_led_via_ADC = 0 ; // dont read until slider moved
 		}
 
-		transmit_system_state = 1;
 
 		READ_SYS = 0 ;
 	}
@@ -586,6 +589,8 @@ int main(void)
 	  TURN_LED_ON_OFF() ;
 	  // read UART params
 	  convert_UART_state_params_to_Int() ;
+	  // REAS sys state
+	  Request_return_system_state() ;
 
 //	  if(UART_ret_sys_state == 1 && READ_SYS == 0){
 //			//dont read ADC + DONT update system
@@ -598,10 +603,10 @@ int main(void)
 //	      UART_ret_sys_state = 0; // Reset UART_ret_sys_state
 //	  }
 
-	  if(READ_SYS ==1){
-		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)"state transmission\n", 19);
-		  READ_SYS = 0;
-	  }
+//	  if(READ_SYS ==1){
+//		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)"state transmission\n", 19);
+//		  READ_SYS = 0;
+//	  }
 	 // system state
 	 if(button_count == 0 || start_up == 1 ){
 
@@ -616,6 +621,7 @@ int main(void)
 			if(update_led_via_ADC == 1 && UART_state_update == 0){
 
 				htim2.Instance->CCR1 =  LED_intensity ; // vary the duty cycle of the LED [1:512]
+				MF_state = LED_intensity ;
 			}
 			else if(UART_state_update == 1 && state > 0 && set_or_ret_sys_state[3] =='F' ){
 
@@ -624,6 +630,9 @@ int main(void)
 					update_led_via_ADC = 0 ; // dont read until slider moved
 				}
 				htim2.Instance->CCR1 = state ;
+
+				MF_state = state ;  // for when sys request made
+
 				UART_state_update = 0;
 			}
 //			else{
