@@ -599,10 +599,6 @@ void Request_return_system_state(){
 
 		HAL_UART_Transmit_IT(&huart2, (uint8_t*)value, 9) ;
 
-//		HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_state, 3) ;
-//		HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param1, 3) ;
-//		HAL_UART_Transmit_IT(&huart2, (uint8_t*)ret_param2, 3) ;
-
 
 
 		READ_SYS = 0 ;
