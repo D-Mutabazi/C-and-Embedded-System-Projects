@@ -110,33 +110,8 @@ uint8_t MM_mode_default = 1;
 uint16_t R_channel_Intensity= 128;
 uint16_t G_channel_Intensity = 128;
 uint16_t B_channel_Intensity = 128 ;
-/* USER CODE END PV */
 
-/* Private function prototypes -----------------------------------------------*/
-void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
-static void MX_USART2_UART_Init(void);
-static void MX_ADC1_Init(void);
-static void MX_TIM2_Init(void);
-static void MX_TIM3_Init(void);
-static void MX_TIM4_Init(void);
-/* USER CODE BEGIN PFP */
-void MF_mode_LED() ;
-void ME_mode_LED();
-void MM_mode_LED();
 
-void adc_dma_val_processing() ;
-
-void TURN_LED_ON_OFF() ;
-void EM_mode_Strobe(uint16_t strobe_delay) ;
-void Emergency_Mode_State_Update();
-void Mood_Mode_State_Update() ;
-void Request_return_system_state() ;
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
 uint8_t studentNum[13]="#:23765518:$\n" ;
 char recvd_char[1];
 
@@ -159,11 +134,11 @@ char Custom_Morse_Msg[3] = {' '};
 // Flashlight mode state values
 uint16_t MF_state = 0 ;
 uint16_t MF_param1 = 0;
-uint16_t MF_param2 = 0 ;
+char MF_param2[3] = {' '} ;
 // Emergency mode state values
 uint16_t ME_state = 0 ;
 uint16_t ME_param1 = 0 ;
-char ME_param2[3] = {' '} ;
+char ME_param2[3] = "000" ;
 // Mood mode state values
 uint16_t MM_state = 0;
 uint16_t MM_param1 = 0 ;
@@ -173,6 +148,40 @@ uint16_t MM_param2 = 0 ;
 char ret_state[3] = {' '} ;
 char ret_param1[3] = {' ' };
 char ret_param2[3] = {' '} ;
+
+char value[19] ;  // stores system requested system state
+
+
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
+static void MX_TIM4_Init(void);
+/* USER CODE BEGIN PFP */
+void MF_mode_LED() ;
+void ME_mode_LED();
+void MM_mode_LED();
+
+void adc_dma_val_processing() ;
+void system_state_update() ;
+void right_button_state_update() ;
+void TURN_LED_ON_OFF() ;
+void EM_mode_Strobe(uint16_t strobe_delay) ;
+void Emergency_Mode_State_Update();
+void convert_UART_state_params_to_Int();
+void Mood_Mode_State_Update() ;
+void Request_return_system_state() ;
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
@@ -232,6 +241,9 @@ void adc_dma_val_processing(){
 	LED_intensity =(float)(scaled_adc_val)*(512.0/4095.0)  ;
 }
 
+/**
+ * Depending on input recvd system changes to specified state
+ */
 void system_state_update(){
 	// button system state update
 	 if(left_button_pressed ==1 && UART_set_syst_state == 0 && UART_ret_sys_state == 0 ){
@@ -256,8 +268,14 @@ void system_state_update(){
 
 	 }
 	 // UART system state update
-	 else if( UART_set_syst_state == 1 && left_button_pressed == 0 && UART_ret_sys_state ==0){ // System state update to come from only one source
+	 else if( left_button_pressed ==0 && UART_set_syst_state == 1 && UART_ret_sys_state == 0){ // System state update to come from only one source
 		 UART_set_syst_state = 0;
+		// stop reading ADC when UART set command  received
+		if(adc_conv_complete == 1){
+			adc_val_capture = 1 ; // capture slider value
+			update_led_via_ADC = 0 ; // dont read until slider moved
+		}
+
 		 UART_state_update =1;
 
 		 if(set_or_ret_sys_state[3] == 'F'){
@@ -275,7 +293,7 @@ void system_state_update(){
 	 }
 	 // read system state
 	 else{ //dont update the system in any way - read current and previous states
-		 if( UART_set_syst_state == 0 && left_button_pressed == 0 && UART_ret_sys_state ==1){
+		 if( left_button_pressed ==0 && UART_set_syst_state == 0 && UART_ret_sys_state == 1){
 
 			 // stop reading adc
 			if(adc_conv_complete == 1){
@@ -316,7 +334,7 @@ void right_button_state_update(){
  * Middle button press turns LED ON/OFF
  */
 void TURN_LED_ON_OFF(){
-	if(middle_button_pressed == 1){
+	if(middle_button_pressed == 1 && UART_set_syst_state == 0){
 		 LED_ON = !LED_ON ;  // turns the LED on OR off
 
 		 // Middle button press -> LED ON / OFF
@@ -328,6 +346,13 @@ void TURN_LED_ON_OFF(){
 
 		 middle_button_pressed = 0 ;
 	 }
+	else if(middle_button_pressed == 0 && UART_state_update == 1  ){
+		if( state>0){
+			LED_ON  = 1 ;
+		}else{
+			LED_ON = 0 ;
+		}
+	}
 }
 
 /**
@@ -353,8 +378,6 @@ void EM_mode_Strobe(uint16_t strobe_delay){
 			 htim2.Instance->CCR1 = strobe_led_Intensity;
 		 }
 	 }
-
-	 // restore
 
 }
 void convert_UART_state_params_to_Int(){
@@ -399,11 +422,11 @@ void convert_UART_state_params_to_Int(){
 		state = atoi(STATE) ;
 		param1 = atoi(PARAM1);
 		// problem - perform check for if non integer characters are passed!
-		if(strcmp(PARAM2, "000") == 0 && set_or_ret_sys_state[3] == 'E'){
+		if(strcmp(PARAM2, "000") == 0 ){
 
 			param2 = atoi(PARAM2) ;  // SOS MORSE OUTPUT
 		}
-		else if( strcmp(PARAM2, "000") != 0 && set_or_ret_sys_state[3] == 'E' ){
+		else if( strcmp(PARAM2, "000") != 0 ){
 
 			Custom_Morse_Msg[0] = PARAM2[0] ; // CUSTOM MORSE output - declare variable to store the output
 			Custom_Morse_Msg[1] = PARAM2[1] ;
@@ -411,9 +434,7 @@ void convert_UART_state_params_to_Int(){
 
 			custom_morse_msg_rcvd = 1;
 		}
-		else{
-			param2 = atoi(PARAM2) ;
-		}
+
 
 	}
 }
@@ -488,7 +509,7 @@ void Mood_Mode_State_Update(){
 		UART_state_update = 0;
 	}
 }
-char value[9] ;
+
 void Request_return_system_state(){
 	if(READ_SYS ==1 ){
 		// flash light mode
@@ -502,9 +523,15 @@ void Request_return_system_state(){
 			ret_param1[1] = (MF_param1 -(MF_param1/100)*100)/10 + 48 ; //tens
 			ret_param1[2] = (MF_param1 - (MF_param1/10)*10) + 48 ;  //units
 
-			ret_param2[0] = MF_param2/100 + 48 ; // hundred
-			ret_param2[1] = (MF_param2 -(MF_param2/100)*100)/10 + 48 ; //tens
-			ret_param2[2] = (MF_param2 - (MF_param2/10)*10) + 48 ;  //units
+			if(custom_morse_msg_rcvd == 1){
+				ret_param2[0] = MF_param2[0]; // hundred
+				ret_param2[1] = MF_param2[1] ; //tens
+				ret_param2[2] = MF_param2[2] ; //units
+			}else{
+				ret_param2[0] = param2/100 + 48;  // hundred
+				ret_param2[1] =	(param2 -(param2/100)*100)/10 + 48 ; //tens
+				ret_param2[2] = (param2 - (param2/10)*10) + 48 ; //units
+			}
 
 
 		}
@@ -512,23 +539,26 @@ void Request_return_system_state(){
 		else if(set_or_ret_sys_state[3] == 'E'){
 			/* here manual copy*/
 			ret_state[0] = ME_state/100 + 48 ; // hundred
-			ret_state[1] = (MF_state -(MF_state/100)*100)/10 + 48 ; //tens
-			ret_state[2] = (MF_state - (MF_state/10)*10) + 48 ;  //units
+			ret_state[1] = (ME_state -(ME_state/100)*100)/10 + 48 ; //tens
+			ret_state[2] = (ME_state - (ME_state/10)*10) + 48 ;  //units
 
-			ret_param1[0] = MF_param1/100 + 48 ; // hundred
-			ret_param1[1] = (MF_param1 -(MF_param1/100)*100)/10 + 48 ; //tens
-			ret_param1[2] = (MF_param1 - (MF_param1/10)*10) + 48 ;  //units
+			ret_param1[0] = ME_param1/100 + 48 ; // hundred
+			ret_param1[1] = (ME_param1 -(ME_param1/100)*100)/10 + 48 ; //tens
+			ret_param1[2] = (ME_param1 - (ME_param1/10)*10) + 48 ;  //units
 
 			// check whether param2 was 0 OR CUSTOM morse message recvd
 			if(strcmp(Custom_Morse_Msg, "000") == 0){
 
-				strcpy(ret_param2, ME_param2) ;
-
+//				strcpy(ret_param2, ME_param2) ;
+				ret_param2[0] = ME_param2[0];
+				ret_param2[1] = ME_param2[1] ;
+				ret_param2[2] = ME_param2[2] ;
 
 			}else{
 				ret_param2[0] = Custom_Morse_Msg[0];
 				ret_param2[1] = Custom_Morse_Msg[1] ;
 				ret_param2[2] = Custom_Morse_Msg[2] ;
+
 			}
 
 		}
@@ -550,46 +580,90 @@ void Request_return_system_state(){
 
 			}
 		}
-		for(int i = 0; i<9  ; i++){
+
+		// construct message to return
+		for(int i = 0; i<19  ; i++){
 			switch(i){
 			case 0:
-				value[i] = ret_state[0];
+				value[i] ='#';
 
 				break ;
 			case 1:
-				value[i] = ret_state[1];
+				value[i] = ':' ;
 
 				break ;
 			case 2:
-				value[i] = ret_state[2];
+				value[i] = 'M';
 
 			break ;
 
 			case 3:
-				value[i] = ret_param1[0];
+				value[i] = set_or_ret_sys_state[3];
 
 				break ;
 			case 4:
-				value[i] = ret_param1[1];
+				value[i] = ':';
 
 				break ;
 			case 5:
-				value[i] = ret_param1[2];
+				value[i] = ret_state[0];
 
 			break ;
 
 			case 6:
-				value[i] = ret_param2[0];
+				value[i] = ret_state[1];
 
 				break ;
 			case 7:
-				value[i] = ret_param2[1];
+				value[i] = ret_state[2];
 
 				break ;
 			case 8:
-				value[i] = ret_param2[2];
+				value[i] =  ':';
 
 			break ;
+
+			case 9:
+				value[i] = ret_param1[0];
+
+				break ;
+			case 10:
+				value[i] = ret_param1[1];
+
+				break ;
+			case 11:
+				value[i] = ret_param1[2];
+
+			break ;
+
+			case 12:
+				value[i] = ':';
+
+				break ;
+			case 13:
+				value[i] = ret_param2[0];
+
+				break ;
+			case 14:
+				value[i] = ret_param2[1];
+
+				break ;
+
+			case 15:
+				value[i] = ret_param2[2];
+
+				break ;
+			case 16:
+				value[i] = ':';
+
+					break ;
+			case 17:
+				value[i] = '$';
+
+				break ;
+			case 18:
+				value[i] = '\n' ;
+				break;
 
 			default:
 				break;
@@ -597,7 +671,7 @@ void Request_return_system_state(){
 			}
 		}
 
-		HAL_UART_Transmit_IT(&huart2, (uint8_t*)value, 9) ;
+		HAL_UART_Transmit_IT(&huart2, (uint8_t*)value, 19) ;
 
 
 
@@ -694,17 +768,23 @@ int main(void)
 
 				htim2.Instance->CCR1 =  LED_intensity ; // vary the duty cycle of the LED [1:512]
 				MF_state = LED_intensity ;
+				MF_param1 = param1  ;
 			}
 			else if(UART_state_update == 1 && state > 0 && set_or_ret_sys_state[3] =='F' ){
 
-				if(adc_conv_complete == 1){
-					adc_val_capture = 1 ; // capture slider value
-					update_led_via_ADC = 0 ; // dont read until slider moved
-				}
 				htim2.Instance->CCR1 = state ;
 
 				MF_state = state ;  // for when sys request made
+				MF_param1 = param1  ;
 
+				if(strcmp(Custom_Morse_Msg, "000") == 0){
+					sprintf(ME_param2, "%d", param2) ;
+
+				}else{
+					MF_param2[0] = Custom_Morse_Msg[0];
+					MF_param2[1] = Custom_Morse_Msg[1] ;
+					MF_param2[2] = Custom_Morse_Msg[2] ;
+				}
 				UART_state_update = 0;
 			}
 
@@ -712,7 +792,8 @@ int main(void)
 	 }else if(button_count == 1 ){// right button system state updated
 		 ME_mode_LED() ; // sets the corresponding modes LED
 
-		 Emergency_Mode_State_Update() ;
+		  // set EM mode states
+		  Emergency_Mode_State_Update() ;
 
 	 }else{
 		 if(button_count == 2){ // Mood Mode
@@ -724,8 +805,7 @@ int main(void)
 
 			 Mood_Mode_State_Update() ; // update the necessary MM states
 			 if(LED_ON == 1){
-				 // set to channel intensities to default values
-				 // no longer default mode - reset back to default in other states?
+
 				 //red channel
 				 htim2.Instance->CCR4 = R_channel_Intensity ;
 				 MM_state = R_channel_Intensity ;
@@ -768,69 +848,7 @@ int main(void)
 		 else if(em_count ==1){ // SOS MOSRE
 			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
 
-			 for(int i = 0; SOS[i] !='\0' ; i++){
 
-				 if(SOS[i] == '.' && DOT == 1){
-
-					 htim2.Instance->CCR1 = 512 ;
-					 timePassed = HAL_GetTick() - morse_current_time ;
-					 if(HAL_GetTick() - morse_current_time >= time_unit ){
-						 morse_current_time = HAL_GetTick() ;
-
-						 DOT=0;
-						 DASH =0 ;
-						 space_in_letter = 1 ;
-
-					 }
-				 }
-				 else if(SOS[i] =='-'  && DASH == 1){
-
-					 htim2.Instance->CCR1 = 512 ;
-					 if(HAL_GetTick() - morse_current_time >= 3*time_unit  ){
-						 morse_current_time = HAL_GetTick() ;
-
-						 DOT =  0 ;
-						 DASH = 0 ;
-						 space_in_letter = 1 ;
-
-					 }
-				 }
-				 else if(SOS[i]== ' '   && space_in_letter ==1){
-
-					 htim2.Instance->CCR1 = 0 ;
-
-					 if(HAL_GetTick() - morse_current_time >= time_unit ){
-						 morse_current_time = HAL_GetTick() ;
-						 space_in_letter = 0 ;
-
-						 //NEXT CHARACTER CHECK
-						 next_char_check = i ;
-						 next_char_check++ ;
-						 if(SOS[next_char_check] == '.' && DOT == 0 ){
-							 DOT= 1 ;
-						 }else if(SOS[next_char_check] == '-' && DASH == 0){
-							 DASH =1;
-
-						 }
-
-					 }
-
-				 }
-				 else{
-					 if(SOS[i]== '\0'){
-
-						 htim2.Instance->CCR1 = 0 ;
-						 if(HAL_GetTick() - morse_current_time >= 3*time_unit){
-							morse_current_time = HAL_GetTick() ;
-
-						 }
-					 }
-				 }
-				 if(next_char_checked == 1){
-					 character = SOS[i++] ;
-					 next_char_checked = 0;
-				 }
-			 }
 		 }
 		 else{
 			 if(em_count == 2){ // CUSTOM MORSE
