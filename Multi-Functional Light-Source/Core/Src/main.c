@@ -425,12 +425,21 @@ void convert_UART_state_params_to_Int(){
 		if(strcmp(PARAM2, "000") == 0 ){
 
 			param2 = atoi(PARAM2) ;  // SOS MORSE OUTPUT
+
+			ME_param2[0] = param2/100 + 48;
+			ME_param2[1] = (param2  -(param2/100)*100)/10 +48 ;
+			ME_param2[2] = (param2 - (param2/10)*10) + 48 ;
 		}
 		else if( strcmp(PARAM2, "000") != 0 ){
 
 			Custom_Morse_Msg[0] = PARAM2[0] ; // CUSTOM MORSE output - declare variable to store the output
 			Custom_Morse_Msg[1] = PARAM2[1] ;
 			Custom_Morse_Msg[2] = PARAM2[2] ;
+
+
+			ME_param2[0] = Custom_Morse_Msg[0];
+			ME_param2[1] = Custom_Morse_Msg[1] ;
+			ME_param2[2] = Custom_Morse_Msg[2] ;
 
 			custom_morse_msg_rcvd = 1;
 		}
@@ -477,21 +486,24 @@ void Emergency_Mode_State_Update(){
 		}
 
 
-
 		UART_state_update = 0;
 	}
 	 // copy previous states information
 		 ME_state = strobe_led_Intensity ;
 		 ME_param1 =  strobe_delay;
-		 if(strcmp(Custom_Morse_Msg, "000") == 0){
-	//		ME_param2 = param2 ;
-			sprintf(ME_param2, "%d", param2) ;
-
-		}else{
-			ME_param2[0] = Custom_Morse_Msg[0];
-			ME_param2[1] = Custom_Morse_Msg[1] ;
-			ME_param2[2] = Custom_Morse_Msg[2] ;
-		}
+//		 if(strcmp(PARAM2, "000") == 0){
+//	//		ME_param2 = param2 ;
+////			sprintf(ME_param2, "%d", param2) ;
+//			ME_param2[0] = param2/100 + 48;
+//			ME_param2[1] = (param2  -(param2/100)*100)/10 +48 ;
+//			ME_param2[2] = (param2 - (param2/10)*10) + 48 ;
+//
+//
+//		}else{
+//			ME_param2[0] = Custom_Morse_Msg[0];
+//			ME_param2[1] = Custom_Morse_Msg[1] ;
+//			ME_param2[2] = Custom_Morse_Msg[2] ;
+//		}
 
 
 }
@@ -547,7 +559,7 @@ void Request_return_system_state(){
 			ret_param1[2] = (ME_param1 - (ME_param1/10)*10) + 48 ;  //units
 
 			// check whether param2 was 0 OR CUSTOM morse message recvd
-			if(strcmp(Custom_Morse_Msg, "000") == 0){
+			if(strcmp(ME_param2, "000") == 0){
 
 //				strcpy(ret_param2, ME_param2) ;
 				ret_param2[0] = ME_param2[0];
