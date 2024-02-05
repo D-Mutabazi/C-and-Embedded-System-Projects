@@ -24,6 +24,8 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "ctype.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -83,14 +85,7 @@ uint8_t led_strobe_on = 0 ; // flag to alternate between on/off in strobe
 uint32_t timePassed = 0 ;
 uint16_t strobe_led_Intensity = 256 ;
 //SOS morse
-char letter[]={'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S'
-					,'T','U','V','W','X','Y','Z', '1','2','3','4','5','6','7','8','9','0'} ;
 
-char *morse_symbol[]={". -","- . . .","- . - .","- . ." ,"." ,". . - .","- - .",". . . .",". .",". - - -",
-				"- . -",". - . ." ,"- -" ,"- ." ,"- - -" ,". - - .","- - . -",". - .",". . .","-",
-				". . -",". . . -",". - -","- . . -","- . - -","- - . .", ". - - - -",". . - - -",
-				". . . - -",". . . . -",". . . . .","- . . . .","- - . . .","- - - . .",
-				"- - - - .","- - - - -"};
 
 uint16_t time_unit = 512 ; //ms
 uint32_t morse_current_time = 0 ;
@@ -101,8 +96,8 @@ uint8_t DOT = 1 ;
 uint8_t DASH = 1 ;
 uint8_t next_char_check = 0 ; //  check if the next character is a dot or dash
 uint8_t next_char_checked = 0 ;
-char SOS[] = ". . . - - - . . ." ; // SOS Morse code ;
-
+char MorseOut[20]  = {0} ;
+//char *MorseOut ;
 char character = '\0' ;
 
 // Mood mode
@@ -178,6 +173,14 @@ void Emergency_Mode_State_Update();
 void convert_UART_state_params_to_Int();
 void Mood_Mode_State_Update() ;
 void Request_return_system_state() ;
+void ascii_to_morse(char *str) ;
+void M_DOT() ;
+void M_DASH() ;
+void M_Space_In_Letter() ;
+void M_Space_between_Letter() ;
+void M_Space_Between_Words() ;
+
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -669,6 +672,129 @@ void Request_return_system_state(){
 	}
 }
 
+void ascii_to_morse(char *str) {
+    int i;
+    char *morse[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---",
+                     "-.-", ".-..", "--", "-.", "---", ".--.", "--.-", ".-.", "...", "-",
+                     "..-", "...-", ".--", "-..-", "-.--", "--..", "-----", ".----", "..---",
+                     "...--", "....-", ".....", "-....", "--...", "---..", "----."};
+    char c;
+
+   // char temp[18] ;
+    //char tempMorse[10] ;
+    char MorseChar1[10] ={};
+    char MorseChar2[10] ={};
+    char MorseChar3[10] ={} ;
+
+
+
+    int tempLenByte1 ;
+    int tempLenByte2 ;
+    int tempLenByte3 ;
+
+    //int len ;
+
+    for (i = 0; i < strlen(str); i++) {
+        c = toupper(str[i]); // convert to uppercase for simplicity
+        if (c >= 'A' && c <= 'Z') { // convert letters
+            printf("%s ", morse[c - 'A']);
+            //length of morse char
+
+            if(i == 0){  //character 1
+                tempLenByte1 = sprintf(MorseChar1, "%s ",morse[c - 'A'] ) ;
+                strncat(MorseOut, MorseChar1, tempLenByte1) ;
+            }
+            if(i == 1){//character 2
+                tempLenByte2 = sprintf(MorseChar2, "%s ", morse[c - 'A']) ;
+                strncat(MorseOut, MorseChar2, tempLenByte2) ;
+
+            }
+            if(i == 2){//character 3
+                tempLenByte3 = sprintf(MorseChar3, "%s ", morse[c - 'A']);
+                strncat(MorseOut, MorseChar3, tempLenByte3) ;
+
+                printf("Morse Array: %s\n", MorseOut) ;
+            }
+
+        } else if (c >= '0' && c <= '9') { // convert digits
+            printf("%s ", morse[c - '0' + 26]);
+
+            if(i == 0){  //character 1
+                tempLenByte1 = sprintf(MorseChar1, "%s ",morse[c - '0' + 26] ) ;
+
+                strncat(MorseOut, MorseChar1, tempLenByte1) ;
+            }
+            if(i == 1){//character 2
+                tempLenByte2 = sprintf(MorseChar2, "%s ",morse[c - '0' + 26]) ;
+                strncat(MorseOut, MorseChar2, tempLenByte2) ;
+
+            }
+            if(i == 2){//character 3
+                tempLenByte3 = sprintf(MorseChar3, "%s ",morse[c - '0' + 26]);
+                strncat(MorseOut, MorseChar3, tempLenByte3) ;
+
+                printf("Morse Array: %s\n", MorseOut) ;
+            }
+
+        } else if (c == ' ') { // word separator
+            printf(" ");
+        }
+    }
+}
+
+// dot
+void M_DOT(){
+	htim2.Instance -> CCR1 = 512 ;
+	if(HAL_GetTick() -  morse_current_time > time_unit){
+		htim2.Instance->CCR1 = 0 ;
+		morse_current_time = HAL_GetTick() ;
+
+		space_in_letter = 1;
+		DASH = 0;
+		DOT = 0;
+
+
+	}
+}
+// dash
+void M_DASH(){
+	htim2.Instance -> CCR1 = 512 ;
+	if(HAL_GetTick() -  morse_current_time > 3*time_unit){
+		htim2.Instance->CCR1 = 0 ; // read next character
+		morse_current_time = HAL_GetTick() ;
+
+		space_in_letter =1 ;
+		DASH = 0;
+		DOT = 0;
+
+	}
+}
+// space in letter
+void M_Space_In_Letter(){
+	if(HAL_GetTick() -  morse_current_time >time_unit){
+		space_in_letter = 0;
+		morse_current_time = HAL_GetTick() ;
+
+	}
+}
+// space between letter
+void M_Space_between_Letter(){
+	if(HAL_GetTick() -  morse_current_time > 3*time_unit){
+		space_between_letters = 0;
+		morse_current_time = HAL_GetTick() ;
+
+	}
+
+}
+// space between words
+void M_Space_Between_Words(){
+	if(HAL_GetTick() -  morse_current_time > 7*time_unit){
+		// start of morse string
+		space_between_words =  0;
+		morse_current_time = HAL_GetTick() ;
+
+	}
+}
 
 /* USER CODE END 0 */
 
@@ -725,7 +851,8 @@ int main(void)
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1) ;
 
   strobe_ticks  = HAL_GetTick() ;
-
+  morse_current_time = HAL_GetTick() ;
+  int readCha = 1;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -842,6 +969,54 @@ int main(void)
 
 			 if(LED_ON){
 
+				 if(readCha == 1){
+					 ascii_to_morse("SOS") ;
+					 HAL_UART_Transmit_IT(&huart2, (uint8_t*)MorseOut, strlen(MorseOut)) ;
+					 readCha = 0;
+
+				 }
+
+
+				 for(int i =0 ; MorseOut[i] != '\0' ; i++){
+
+					 if(MorseOut[i] == '.' && DOT == 1){
+						 M_DOT() ;
+
+					 }else if(MorseOut[i] == '-' && DASH ==1){
+						 M_DASH() ;
+
+					 }else if(MorseOut[i] == ' ' && space_between_letters == 1){
+						 M_Space_between_Letter() ;
+
+					 }else if(space_in_letter == 1){
+						 M_Space_In_Letter();
+
+					 }else if(space_between_words == 1){
+						 M_Space_Between_Words() ;
+					 }else{ // next character checks
+						 switch(MorseOut[i++]){
+						 case '.':
+							 DOT = 1 ;
+
+							 break;
+						 case '-':
+							 DASH = 1 ;
+							 break;
+						 case ' ':
+							 space_between_letters = 1;
+							 break;
+						 case '\0':
+							 space_between_words = 1 ;
+							 break ;
+
+						 default:
+							 break;
+
+						 }
+
+					 }
+
+				 }
 			 }
 		 }
 		 else{
