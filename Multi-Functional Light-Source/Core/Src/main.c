@@ -192,11 +192,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
 	if(recvd_char[0] == '\n'){
 		if(num_characters == 19){
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"set mode\n",9 ) ;
 			UART_set_syst_state = 1 ;
+
 		}else if( num_characters == 7){
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"request mode\n", 13) ;
 			UART_ret_sys_state = 1 ;
+
 		}else{
 			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Incorrect status request size\n", 30) ;
 		}
@@ -264,6 +264,7 @@ void system_state_update(){
 			 strobe_delay = 512;
 		 }
 
+		 LED_ON = 0 ;  // at eahc new state led set off
 		 left_button_pressed = 0 ;
 
 	 }
@@ -312,21 +313,17 @@ void system_state_update(){
  * Updates system state after right button pressed in emergency mode
  */
 void right_button_state_update(){
-	if(button_count == 1){
-		if(right_button_pressed){
-			right_button_pressed = 0 ;
 
-			update_led_via_ADC = 0 ; // dont read adc by default in next state
+	if(right_button_pressed){
+		right_button_pressed = 0 ;
 
-			 em_count++ ;
+		update_led_via_ADC = 0 ; // dont read adc by default in next state
 
-			 if(em_count>2){
-				 em_count = 0;
-			 }
-		}
-	}else if( button_count != 1 && right_button_pressed){
-		right_button_pressed = 0; //do not read right button presses triggered
-								  // in other states except emergency mode
+		 em_count++ ;
+
+		 if(em_count>2){
+			 em_count = 0;
+		 }
 	}
 }
 
@@ -443,8 +440,6 @@ void convert_UART_state_params_to_Int(){
 
 			custom_morse_msg_rcvd = 1;
 		}
-
-
 	}
 }
 
@@ -491,19 +486,6 @@ void Emergency_Mode_State_Update(){
 	 // copy previous states information
 		 ME_state = strobe_led_Intensity ;
 		 ME_param1 =  strobe_delay;
-//		 if(strcmp(PARAM2, "000") == 0){
-//	//		ME_param2 = param2 ;
-////			sprintf(ME_param2, "%d", param2) ;
-//			ME_param2[0] = param2/100 + 48;
-//			ME_param2[1] = (param2  -(param2/100)*100)/10 +48 ;
-//			ME_param2[2] = (param2 - (param2/10)*10) + 48 ;
-//
-//
-//		}else{
-//			ME_param2[0] = Custom_Morse_Msg[0];
-//			ME_param2[1] = Custom_Morse_Msg[1] ;
-//			ME_param2[2] = Custom_Morse_Msg[2] ;
-//		}
 
 
 }
@@ -511,11 +493,8 @@ void Emergency_Mode_State_Update(){
 void Mood_Mode_State_Update(){
 	if(UART_state_update ==1  && set_or_ret_sys_state[3] == 'M'){
 
-		// set R channel intensity
 		R_channel_Intensity = state ;
-		// set G channel intensity
 		G_channel_Intensity = param1 ;
-		// set B channel intensity
 		B_channel_Intensity = param2 ;
 
 		UART_state_update = 0;
@@ -526,7 +505,7 @@ void Request_return_system_state(){
 	if(READ_SYS ==1 ){
 		// flash light mode
 		if(set_or_ret_sys_state[3] == 'F'){
-			/* here manual copy*/
+
 			ret_state[0] = MF_state/100 + 48 ; // hundred
 			ret_state[1] = (MF_state -(MF_state/100)*100)/10 + 48 ; //tens
 			ret_state[2] = (MF_state - (MF_state/10)*10) + 48 ;  //units
@@ -549,7 +528,7 @@ void Request_return_system_state(){
 		}
 		// emergency mode
 		else if(set_or_ret_sys_state[3] == 'E'){
-			/* here manual copy*/
+
 			ret_state[0] = ME_state/100 + 48 ; // hundred
 			ret_state[1] = (ME_state -(ME_state/100)*100)/10 + 48 ; //tens
 			ret_state[2] = (ME_state - (ME_state/10)*10) + 48 ;  //units
@@ -561,7 +540,6 @@ void Request_return_system_state(){
 			// check whether param2 was 0 OR CUSTOM morse message recvd
 			if(strcmp(ME_param2, "000") == 0){
 
-//				strcpy(ret_param2, ME_param2) ;
 				ret_param2[0] = ME_param2[0];
 				ret_param2[1] = ME_param2[1] ;
 				ret_param2[2] = ME_param2[2] ;
@@ -577,7 +555,7 @@ void Request_return_system_state(){
 		// mood mode
 		else{
 			if(set_or_ret_sys_state[3] == 'M'){
-				/* here manual copy*/
+
 				ret_state[0] = MM_state/100 + 48 ; // hundred
 				ret_state[1] = (MM_state -(MM_state/100)*100)/10 + 48 ; //tens
 				ret_state[2] = (MM_state - (MM_state/10)*10) + 48 ;  //units
@@ -754,16 +732,17 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  // Turn LED ON/OFF
+	  TURN_LED_ON_OFF() ;
+	  // REAS sys state
+	  Request_return_system_state() ;
 	  // left button press to update system state (MF -> ME -> MM)
 	  system_state_update() ;
 	  //run adc and capture previous snapshot of ADC value and adc movement processing
 	  adc_dma_val_processing();
-	  // Turn LED ON/OFF
-	  TURN_LED_ON_OFF() ;
+
 	  // read UART params
 	  convert_UART_state_params_to_Int() ;
-	  // REAS sys state
-	  Request_return_system_state() ;
 
 	 // system state
 	 if(button_count == 0 || start_up == 1 ){
@@ -798,14 +777,15 @@ int main(void)
 					MF_param2[2] = Custom_Morse_Msg[2] ;
 				}
 				UART_state_update = 0;
+			}else{
+				MF_state = htim2.Instance->CCR1;
 			}
 
 		}
 	 }else if(button_count == 1 ){// right button system state updated
 		 ME_mode_LED() ; // sets the corresponding modes LED
 
-		  // set EM mode states
-		  Emergency_Mode_State_Update() ;
+		 Emergency_Mode_State_Update() ;// set EM mode states
 
 	 }else{
 		 if(button_count == 2){ // Mood Mode
@@ -842,15 +822,15 @@ int main(void)
 		 }
 	 }
 
-	 // right button state update
-	 right_button_state_update() ;
+
 	 //EMERGENCY MODES
 	  if(button_count ==1 ){
+		// update emergency mode states
+		right_button_state_update() ;
 
 		 if(em_count == 0 || em_default ==1){ //strobe wit default intensity
 			 em_default = 0 ; //default state reached
 			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
-
 
 			 if(LED_ON){ //LED_on =?
 				 // strobe LED with provided on time
@@ -860,11 +840,17 @@ int main(void)
 		 else if(em_count ==1){ // SOS MOSRE
 			 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
 
+			 if(LED_ON){
 
+			 }
 		 }
 		 else{
 			 if(em_count == 2){ // CUSTOM MORSE
 				 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
+
+				 if(LED_ON){
+
+				 }
 		 }
 		}
 	  }
