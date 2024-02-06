@@ -90,12 +90,15 @@ uint16_t strobe_led_Intensity = 256 ;
 uint16_t time_unit = 512 ; //ms
 uint32_t morse_current_time = 0 ;
 uint8_t space_in_letter= 0;
-uint8_t space_between_letters = 1 ;
-uint8_t space_between_words = 1 ;
-uint8_t DOT = 1 ;
-uint8_t DASH = 1 ;
+uint8_t space_between_letters = 0 ;
+uint8_t space_between_words = 0 ;
+uint8_t DOT = 0 ;
+uint8_t DASH = 0 ;
 uint8_t next_char_check = 0 ; //  check if the next character is a dot or dash
 uint8_t next_char_checked = 0 ;
+uint8_t morse_dot_on = 0;
+uint8_t morse_dash_on = 0 ;
+
 char MorseOut[20]  = {0} ;
 //char *MorseOut ;
 char character = '\0' ;
@@ -976,46 +979,57 @@ int main(void)
 
 				 }
 
+				 for(int i = 0; MorseOut[i] != '\0' ; i++){
 
-				 for(int i =0 ; MorseOut[i] != '\0' ; i++){
+					 if(MorseOut[i] == '.' && DASH == 0){
+						 DOT  = 1;
+						 DASH = 0;
+						 timePassed = HAL_GetTick() - morse_current_time ;
+						 if(timePassed > time_unit && morse_dot_on == 0){  //off
+							 htim2.Instance->CCR1 = 0 ;
+							 morse_dot_on = 1;
 
-					 if(MorseOut[i] == '.' && DOT == 1){
-						 M_DOT() ;
+						 }
+						 else if(timePassed > 2*time_unit && morse_dot_on == 1){ //on
+							 htim2.Instance->CCR1 = 512 ;
+							 morse_current_time = HAL_GetTick() ;
+							 morse_dot_on = 0;
+						 }
+					 }
+					 else if(MorseOut[i] == '-' && DOT ==0){
+						 DOT =0 ;
+						 DASH = 1 ;
 
-					 }else if(MorseOut[i] == '-' && DASH ==1){
-						 M_DASH() ;
+						 timePassed = HAL_GetTick() - morse_current_time ;
 
-					 }else if(MorseOut[i] == ' ' && space_between_letters == 1){
-						 M_Space_between_Letter() ;
+						 if(timePassed > time_unit && morse_dash_on == 0){  //off
+							 htim2.Instance->CCR1 = 512;
+							 morse_dash_on = 1;
 
-					 }else if(space_in_letter == 1){
-						 M_Space_In_Letter();
-
-					 }else if(space_between_words == 1){
-						 M_Space_Between_Words() ;
-					 }else{ // next character checks
-						 switch(MorseOut[i++]){
-						 case '.':
-							 DOT = 1 ;
-
-							 break;
-						 case '-':
-							 DASH = 1 ;
-							 break;
-						 case ' ':
-							 space_between_letters = 1;
-							 break;
-						 case '\0':
-							 space_between_words = 1 ;
-							 break ;
-
-						 default:
-							 break;
-
+						 }
+						 else if(timePassed > 3*time_unit && morse_dash_on == 1){ //on
+							 htim2.Instance->CCR1 = 0 ;
+							 morse_current_time = HAL_GetTick() ;
+							 morse_dash_on = 0;
 						 }
 
 					 }
+					 else{
+						 switch(MorseOut[i]){
+						 case '.':
+							 if(morse_dot_on == 0){
+								 DASH = 0 ;
+							 }
+							 break;
+						 case '-':
+							 if(morse_dash_on ==0){
+								 DOT = 0;
 
+							 }
+							 break;
+
+						 }
+					 }
 				 }
 			 }
 		 }
