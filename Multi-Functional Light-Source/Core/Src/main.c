@@ -47,6 +47,8 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
@@ -98,7 +100,7 @@ uint8_t next_char_check = 0 ; //  check if the next character is a dot or dash
 uint8_t next_char_checked = 0 ;
 uint8_t morse_dot_on = 0;
 uint8_t morse_dash_on = 0 ;
-
+uint8_t DOT_or_DASH = 0 ;
 char MorseOut[20]  = {0} ;
 //char *MorseOut ;
 char character = '\0' ;
@@ -162,6 +164,7 @@ static void MX_ADC1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 void MF_mode_LED() ;
 void ME_mode_LED();
@@ -798,7 +801,118 @@ void M_Space_Between_Words(){
 
 	}
 }
+#define DOT_DURATION 512
+#define DASH_DURATION (3 * DOT_DURATION)
+#define SYMBOL_SPACE (DOT_DURATION)
+#define LETTER_SPACE (3 * DOT_DURATION)
+#define WORD_SPACE (7 * DOT_DURATION)
+uint8_t wordTransmitted = 0;
+// Morse code representations
+const char* morseCodeTable[36] = {
+    ".-",   // A
+    "-...", // B
+    "-.-.", // C
+    "-..",  // D
+    ".",    // E
+    "..-.", // F
+    "--.",  // G
+    "....", // H
+    "..",   // I
+    ".---", // J
+    "-.-",  // K
+    ".-..", // L
+    "--",   // M
+    "-.",   // N
+    "---",  // O
+    ".--.", // P
+    "--.-", // Q
+    ".-.",  // R
+    "...",  // S
+    "-",    // T
+    "..-",  // U
+    "...-", // V
+    ".--",  // W
+    "-..-", // X
+    "-.--", // Y
+    "--..", // Z
+    "-----",// 0
+    ".----",// 1
+    "..---",// 2
+    "...--",// 3
+    "....-",// 4
+    ".....",// 5
+    "-....",// 6
+    "--...",// 7
+    "---..",// 8
+    "----." // 9
+};
 
+void blinkMorseCode(char c) {
+    if (c >= 'A' && c <= 'Z') {
+        c -= 'A';
+    } else if (c >= '0' && c <= '9') {
+        c -= '0' - 26;
+    } else {
+        // Unsupported character, ignore
+        return;
+    }
+
+    const char* morse = morseCodeTable[(int)c];
+    while (*morse) {
+        switch (*morse) {
+            case '.':
+            	htim2.Instance->CCR1= 512;
+                HAL_Delay(DOT_DURATION);
+                htim2.Instance->CCR1= 0;
+                HAL_Delay(SYMBOL_SPACE);
+                break;
+            case '-':
+            	htim2.Instance->CCR1= 512;;
+                HAL_Delay(DASH_DURATION);
+                htim2.Instance->CCR1= 0;
+                HAL_Delay(SYMBOL_SPACE);
+                break;
+            default:
+                break;
+        }
+        morse++;
+    }
+    HAL_Delay(LETTER_SPACE - SYMBOL_SPACE); // Additional space after letter
+}
+
+//void encodeAndBlink(const char* str) {
+//    while (*str) {
+//        blinkMorseCode(toupper(*str)); // Convert character to uppercase before encoding
+//        str++;
+//    }
+//    HAL_Delay(WORD_SPACE - LETTER_SPACE); // Additional space after word
+//}
+char c ;
+char MSG[10] = {} ;
+void encodeAndBlink(const char* str){
+	if(wordTransmitted==0){
+		while(*str){
+			c = *str ;
+			blinkMorseCode(toupper(*str)) ;
+			str++ ;
+
+			if(*str == '\0'){
+				wordTransmitted =1 ;
+				morse_current_time= HAL_GetTick() ;
+				break;
+			}
+		}
+	}
+	// NEXT word delay
+
+	if(wordTransmitted ==1){
+		timePassed = HAL_GetTick() - morse_current_time ;
+		if(HAL_GetTick() - morse_current_time > 7*DOT_DURATION){
+//			morse_current_time = HAL_GetTick() ;
+			wordTransmitted = 0 ;
+		}
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -834,6 +948,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_Delay(200);
@@ -979,58 +1094,11 @@ int main(void)
 
 				 }
 
-				 for(int i = 0; MorseOut[i] != '\0' ; i++){
+				 encodeAndBlink("SOS") ;
 
-					 if(MorseOut[i] == '.' && DASH == 0){
-						 DOT  = 1;
-						 DASH = 0;
-						 timePassed = HAL_GetTick() - morse_current_time ;
-						 if(timePassed > time_unit && morse_dot_on == 0){  //off
-							 htim2.Instance->CCR1 = 0 ;
-							 morse_dot_on = 1;
 
-						 }
-						 else if(timePassed > 2*time_unit && morse_dot_on == 1){ //on
-							 htim2.Instance->CCR1 = 512 ;
-							 morse_current_time = HAL_GetTick() ;
-							 morse_dot_on = 0;
-						 }
-					 }
-					 else if(MorseOut[i] == '-' && DOT ==0){
-						 DOT =0 ;
-						 DASH = 1 ;
-
-						 timePassed = HAL_GetTick() - morse_current_time ;
-
-						 if(timePassed > time_unit && morse_dash_on == 0){  //off
-							 htim2.Instance->CCR1 = 512;
-							 morse_dash_on = 1;
-
-						 }
-						 else if(timePassed > 3*time_unit && morse_dash_on == 1){ //on
-							 htim2.Instance->CCR1 = 0 ;
-							 morse_current_time = HAL_GetTick() ;
-							 morse_dash_on = 0;
-						 }
-
-					 }
-					 else{
-						 switch(MorseOut[i]){
-						 case '.':
-							 if(morse_dot_on == 0){
-								 DASH = 0 ;
-							 }
-							 break;
-						 case '-':
-							 if(morse_dash_on ==0){
-								 DOT = 0;
-
-							 }
-							 break;
-
-						 }
-					 }
 				 }
+
 			 }
 		 }
 		 else{
@@ -1041,7 +1109,7 @@ int main(void)
 
 				 }
 		 }
-		}
+
 	  }
     /* USER CODE END WHILE */
 
@@ -1088,10 +1156,12 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_ADC12
-                              |RCC_PERIPHCLK_TIM2|RCC_PERIPHCLK_TIM34;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_I2C1
+                              |RCC_PERIPHCLK_ADC12|RCC_PERIPHCLK_TIM2
+                              |RCC_PERIPHCLK_TIM34;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
   PeriphClkInit.Adc12ClockSelection = RCC_ADC12PLLCLK_DIV1;
+  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
   PeriphClkInit.Tim2ClockSelection = RCC_TIM2CLK_HCLK;
   PeriphClkInit.Tim34ClockSelection = RCC_TIM34CLK_HCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
@@ -1163,6 +1233,54 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x2000090E;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
@@ -1414,16 +1532,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LED_D3_Pin|LED_D4_Pin|LED_D5_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, LED_D3_Pin|MCLR_Line_Pin|LED_D4_Pin|LED_D5_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_D2_GPIO_Port, LED_D2_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PA6 PA7 */
   GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
@@ -1431,11 +1543,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LED_D3_Pin LED_D4_Pin LED_D5_Pin */
-  GPIO_InitStruct.Pin = LED_D3_Pin|LED_D4_Pin|LED_D5_Pin;
+  /*Configure GPIO pins : LED_D3_Pin MCLR_Line_Pin LED_D4_Pin LED_D5_Pin */
+  GPIO_InitStruct.Pin = LED_D3_Pin|MCLR_Line_Pin|LED_D4_Pin|LED_D5_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED_D2_Pin */
@@ -1454,6 +1572,9 @@ static void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
