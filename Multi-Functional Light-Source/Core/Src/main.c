@@ -91,6 +91,8 @@ uint16_t strobe_led_Intensity = 256 ;
 
 uint16_t time_unit = 512 ; //ms
 uint32_t morse_current_time = 0 ;
+uint32_t space_between_letter_time = 0 ;
+
 uint8_t space_in_letter= 0;
 uint8_t space_between_letters = 0 ;
 uint8_t space_between_words = 0 ;
@@ -858,35 +860,44 @@ void blinkMorseCode(char c) {
     }
 
     const char* morse = morseCodeTable[(int)c];
-    while (*morse) {
-        switch (*morse) {
-            case '.':
-            	htim2.Instance->CCR1= 512;
-                HAL_Delay(DOT_DURATION);
-                htim2.Instance->CCR1= 0;
-                HAL_Delay(SYMBOL_SPACE);
-                break;
-            case '-':
-            	htim2.Instance->CCR1= 512;;
-                HAL_Delay(DASH_DURATION);
-                htim2.Instance->CCR1= 0;
-                HAL_Delay(SYMBOL_SPACE);
-                break;
-            default:
-                break;
-        }
-        morse++;
+    if(space_between_letters ==0 ){
+		while (*morse) {
+			switch (*morse) {
+				case '.':
+					htim2.Instance->CCR1= 512;
+					HAL_Delay(DOT_DURATION);
+					htim2.Instance->CCR1= 0;
+					HAL_Delay(SYMBOL_SPACE);
+					break;
+				case '-':
+					htim2.Instance->CCR1= 512;;
+					HAL_Delay(DASH_DURATION);
+					htim2.Instance->CCR1= 0;
+					HAL_Delay(SYMBOL_SPACE);
+					break;
+				default:
+					break;
+			}
+			morse++;
+			if(*morse == '\0'){
+				space_between_letters = 1 ;
+				space_between_letter_time =  HAL_GetTick() ;
+
+				break ;
+			}
+		}
     }
-    HAL_Delay(LETTER_SPACE - SYMBOL_SPACE); // Additional space after letter
+//    HAL_Delay(LETTER_SPACE - SYMBOL_SPACE); // Additional space after letter
+    if(space_between_letters == 1){
+    	 if(HAL_GetTick() -  space_between_letter_time >= 3*time_unit){
+			space_between_letters = 0 ;
+
+    	 }
+    }
+
 }
 
-//void encodeAndBlink(const char* str) {
-//    while (*str) {
-//        blinkMorseCode(toupper(*str)); // Convert character to uppercase before encoding
-//        str++;
-//    }
-//    HAL_Delay(WORD_SPACE - LETTER_SPACE); // Additional space after word
-//}
+
 char c ;
 char MSG[10] = {} ;
 void encodeAndBlink(const char* str){
@@ -908,7 +919,6 @@ void encodeAndBlink(const char* str){
 	if(wordTransmitted ==1){
 		timePassed = HAL_GetTick() - morse_current_time ;
 		if(HAL_GetTick() - morse_current_time > 7*DOT_DURATION){
-//			morse_current_time = HAL_GetTick() ;
 			wordTransmitted = 0 ;
 		}
 	}
