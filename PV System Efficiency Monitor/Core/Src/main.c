@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,8 +44,13 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 uint8_t studentNum[13] = "&_23765518_*\n" ;
 
-char char_rcvd[1] ;
+char char_rcvd[10] = " " ;
 
+extern uint8_t g_left_button_pressed  ;
+extern uint8_t g_right_button_pressed ;
+extern uint8_t g_top_button_pressed ;
+extern uint8_t g_bottom_button_pressed ;
+extern uint8_t g_middle_button_pressed ;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -102,6 +107,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  HAL_Delay(150);
   HAL_UART_Transmit_IT(&huart2, (uint8_t*)studentNum, 13) ;
 
   HAL_UART_Receive_IT(&huart2, (uint8_t*)char_rcvd, 1) ;
@@ -111,7 +117,39 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if(g_left_button_pressed == 1){
+		  g_left_button_pressed = 0 ;
 
+		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
+	  }
+
+	  else if(g_right_button_pressed == 1){
+		  g_right_button_pressed = 0;
+
+		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
+
+	  }
+
+	  else if(g_middle_button_pressed == 1){
+		  g_middle_button_pressed = 0 ;
+
+		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
+
+	  }
+
+	  else if(g_top_button_pressed ==1 ){
+		  g_top_button_pressed = 0;
+
+		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
+
+	  }
+
+	  else if(g_bottom_button_pressed == 1){
+		  g_bottom_button_pressed = 0 ;
+
+		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
+
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -228,6 +266,25 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA6 PA7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB8 PB9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
