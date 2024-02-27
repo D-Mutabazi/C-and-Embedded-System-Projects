@@ -144,11 +144,12 @@ int main(void)
 
 	  }
 
-	  else if(g_bottom_button_pressed == 1){
-		  g_bottom_button_pressed = 0 ;
+	  else{
+		  if(g_bottom_button_pressed == 1){
+			  g_bottom_button_pressed = 0 ;
 
-		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
-
+			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
+		  }
 	  }
     /* USER CODE END WHILE */
 

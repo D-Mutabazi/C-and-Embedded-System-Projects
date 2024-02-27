@@ -48,6 +48,8 @@ volatile uint8_t g_bottom_button_pressed = 0 ;
 volatile uint8_t g_middle_button_pressed = 0 ;
 
 
+volatile uint8_t button_state = 1;  // stable button state
+uint32_t ticks_pressed = 0  ;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -212,13 +214,46 @@ void EXTI9_5_IRQHandler(void)
   /* USER CODE BEGIN EXTI9_5_IRQn 0 */
 	if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_8) != RESET){
 
-		g_left_button_pressed =1;
+
+		if(HAL_GetTick() - ticks_pressed >= 20){
+			// stable low state
+			if(button_state == 1  && HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) == 0){
+				button_state =0 ; // stable low reached
+				ticks_pressed = HAL_GetTick() ;
+
+				g_left_button_pressed =1;
+			}
+
+			// stable high state
+			if(button_state == 0 && HAL_GPIO_ReadPin(GPIOB ,GPIO_PIN_8) == 1 ){
+				ticks_pressed = HAL_GetTick() ;
+				button_state =1 ; // stable high state
+
+			}
+		}
 		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_8) ;
 	}
 
 	else if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_9) != RESET){
 
-		g_top_button_pressed = 1 ;
+
+
+		if(HAL_GetTick() - ticks_pressed >= 20){
+			// stable low state
+			if(button_state == 1  && HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9) == 0){
+				button_state =0 ; // stable low reached
+				ticks_pressed = HAL_GetTick() ;
+
+				g_top_button_pressed = 1 ;
+			}
+
+			// stable high state
+			if(button_state == 0 && HAL_GPIO_ReadPin(GPIOB ,GPIO_PIN_9) == 1 ){
+				ticks_pressed = HAL_GetTick() ;
+				button_state =1 ; // stable high state
+
+			}
+		}
 
 		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_9) ;
 
@@ -226,7 +261,25 @@ void EXTI9_5_IRQHandler(void)
 
 	else if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_6) != RESET){
 
-		g_middle_button_pressed =1 ;
+
+
+		if(HAL_GetTick() - ticks_pressed >= 20){
+			// stable low state
+			if(button_state == 1  && HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_6) == 0){
+				button_state =0 ; // stable low reached
+				ticks_pressed = HAL_GetTick() ;
+
+				g_middle_button_pressed =1 ;
+			}
+
+			// stable high state
+			if(button_state == 0 && HAL_GPIO_ReadPin(GPIOA ,GPIO_PIN_6) == 1 ){
+				ticks_pressed = HAL_GetTick() ;
+				button_state =1 ; // stable high state
+
+			}
+		}
+
 
 		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_6) ;
 
@@ -234,12 +287,36 @@ void EXTI9_5_IRQHandler(void)
 
 	else if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_7) != RESET){
 
-		g_right_button_pressed = 1 ;
+
+
+
+		if(HAL_GetTick() - ticks_pressed >= 20){
+			// stable low state
+			if(button_state == 1  && HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_7) == 0){
+				button_state =0 ; // stable low reached
+				ticks_pressed = HAL_GetTick() ;
+
+				g_right_button_pressed = 1 ;
+			}
+
+			// stable high state
+			if(button_state == 0 && HAL_GPIO_ReadPin(GPIOA ,GPIO_PIN_7) == 1 ){
+				ticks_pressed = HAL_GetTick() ;
+				button_state =1 ; // stable high state
+
+			}
+		}
 		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_7) ;
 	}
 
 	else{
-		g_bottom_button_pressed = 0 ;
+
+		if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_7) != RESET){
+
+			g_bottom_button_pressed = 1 ;
+
+			__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_7) ;
+		}
 	}
   /* USER CODE END EXTI9_5_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6);
