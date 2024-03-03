@@ -59,6 +59,11 @@ extern uint8_t g_middle_button_pressed ;
 //LM235 - TEMP Sens
 uint16_t g_raw = 0;
 char g_msg[10];
+double g_temp = 0 ;
+double g_vin = 0 ;
+uint16_t g_temp_in_deg = 0 ;
+char g_temperature[3]= {} ;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -132,6 +137,14 @@ int main(void)
 	  HAL_ADC_Start(&hadc1) ;
 	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	  g_raw  = HAL_ADC_GetValue(&hadc1) ;
+
+	  g_vin = g_raw*(3.3/4095.0) ; // input voltage
+	  g_temp = g_vin*100 - 273.15 ;
+	  g_temp_in_deg = (uint16_t)g_temp ;
+
+	  g_temperature[0]  = (g_temp_in_deg/100) + 48 ;
+	  g_temperature[1] = (g_temp_in_deg - (g_temp_in_deg/100)*100 )/10 + 48 ;
+	  g_temperature[2] = (g_temp_in_deg - ((g_temp_in_deg/10)*10) ) + 48 ;
 
 	  sprintf(g_msg, "%d\n", g_raw) ;
 	  HAL_UART_Transmit_IT(&huart2,(uint8_t*)g_msg, strlen(g_msg)) ;
