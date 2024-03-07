@@ -48,7 +48,7 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 uint8_t studentNum[13] = "&_23765518_*\n" ;
 
-char char_rcvd[10] = " " ;
+char char_rcvd[1] = " " ;
 
 extern uint8_t g_left_button_pressed  ;
 extern uint8_t g_right_button_pressed ;
@@ -64,6 +64,11 @@ double g_temp = 0 ;
 double g_vin = 0 ;
 uint16_t g_temp_in_deg = 0 ;
 char g_temperature[3]= {} ;
+
+// SYSTEM state machine variables
+char g_system_config[17] = {} ;
+uint8_t g_byte_count = 0 ;
+uint8_t g_config_command_rcvd = 0;    // check for when config recvd
 
 /* USER CODE END PV */
 
@@ -82,11 +87,21 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len) ;
 /* USER CODE BEGIN 0 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
-	// char received - echo ;
-	HAL_UART_Transmit_IT(huart, (uint8_t*)char_rcvd, 1) ;
+	g_system_config[g_byte_count] = char_rcvd[0] ;
+	g_byte_count++ ;
+
+	if(char_rcvd[0] == '\n'){
+		if(g_byte_count == 7){
+			HAL_UART_Transmit_IT(&huart2,(uint8_t*)"config recvd\n", 13);
+		}
+
+		g_byte_count =0 ;
+
+
+	}
 
 	//re-prime receiver
-	HAL_UART_Receive_IT(huart, (uint8_t*)char_rcvd, 1) ;
+	HAL_UART_Receive_IT(&huart2, (uint8_t*)char_rcvd, 1) ;
 
 }
 
@@ -127,7 +142,6 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len){
 				break;
 
 		}
-
 	}
 }
 /* USER CODE END 0 */
@@ -174,14 +188,13 @@ int main(void)
   while (1)
   {
 
-	  // temp sens
 
 	  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
 	  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
 
-	  sprintf(g_msg, "%d\n", g_raw) ;
-	  HAL_UART_Transmit_IT(&huart2,(uint8_t*)g_msg, strlen(g_msg)) ;
-	  HAL_Delay(100) ;
+//	  sprintf(g_msg, "%d\n", g_raw) ;
+//	  HAL_UART_Transmit_IT(&huart2,(uint8_t*)g_msg, strlen(g_msg)) ;
+//	  HAL_Delay(100) ;
 
 
 	  if(g_left_button_pressed == 1){
