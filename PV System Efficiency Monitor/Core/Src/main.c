@@ -69,7 +69,9 @@ char g_temperature[3]= {} ;
 char g_system_config[17] = {} ;
 uint8_t g_byte_count = 0 ;
 uint8_t g_config_command_rcvd = 0;    // check for when config recvd
-
+uint8_t g_EN_measure= 0;
+uint32_t g_time_passed = 0 ;
+uint8_t g_LED_D2_ON  =0 ;   // LED D2 state initially off
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -81,6 +83,7 @@ static void MX_ADC1_Init(void);
 
 uint16_t get_adc_value_and_celsius_temperature() ;
 void store_temp_in_string(uint16_t temperature, char temp[], int len) ;
+void system_state_update() ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -92,12 +95,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
 	if(char_rcvd[0] == '\n'){
 		if(g_byte_count == 7){
-			HAL_UART_Transmit_IT(&huart2,(uint8_t*)"config recvd\n", 13);
+//			HAL_UART_Transmit_IT(&huart2,(uint8_t*)"config recvd\n", 13);
+			g_config_command_rcvd = 1;
 		}
 
 		g_byte_count =0 ;
-
-
 	}
 
 	//re-prime receiver
@@ -144,6 +146,18 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len){
 		}
 	}
 }
+
+void system_state_update(){
+	if(g_top_button_pressed  == 1){
+		g_top_button_pressed = 0;
+
+		g_EN_measure++  ;
+
+		if(g_EN_measure >1 ){
+			g_EN_measure = 0;
+		}
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -181,56 +195,48 @@ int main(void)
   HAL_UART_Transmit_IT(&huart2, (uint8_t*)studentNum, 13) ;
 
   HAL_UART_Receive_IT(&huart2, (uint8_t*)char_rcvd, 1) ;
+
+  g_time_passed = HAL_GetTick() ; //snapshot of time
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-
-	  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
-	  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
-
+	  system_state_update() ;
 //	  sprintf(g_msg, "%d\n", g_raw) ;
 //	  HAL_UART_Transmit_IT(&huart2,(uint8_t*)g_msg, strlen(g_msg)) ;
 //	  HAL_Delay(100) ;
 
 
-	  if(g_left_button_pressed == 1){
-		  g_left_button_pressed = 0 ;
 
-		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
-	  }
 
-	  else if(g_right_button_pressed == 1){
-		  g_right_button_pressed = 0;
 
-		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
+	  // measure Ta & measure Tb
+	  if(g_EN_measure == 1){
 
-	  }
+		  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
+		  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
 
-	  else if(g_middle_button_pressed == 1){
-		  g_middle_button_pressed = 0 ;
+		  if(HAL_GetTick() - g_time_passed >= 500 && g_LED_D2_ON == 0){
+			  g_LED_D2_ON = 1; // set D2 on
+			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET) ;
 
-		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
-
-	  }
-
-	  else if(g_top_button_pressed ==1 ){
-		  g_top_button_pressed = 0;
-
-		  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
-
-	  }
-
-	  else{
-		  if(g_bottom_button_pressed == 1){
-			  g_bottom_button_pressed = 0 ;
-
-			  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5) ;
 		  }
+		  else if(HAL_GetTick() - g_time_passed >= 1000 && g_LED_D2_ON == 1){
+			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
+			  g_time_passed =  HAL_GetTick() ;
+			  g_LED_D2_ON = 0;  //set D2 off
+
+		  }
+
 	  }
+
+	  // Flash D3 50ms ON/OFF
+
+
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
