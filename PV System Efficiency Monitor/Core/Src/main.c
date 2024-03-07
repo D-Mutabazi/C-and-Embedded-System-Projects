@@ -72,6 +72,8 @@ uint8_t g_config_command_rcvd = 0;    // check for when config recvd
 uint8_t g_EN_measure= 0;
 uint32_t g_time_passed = 0 ;
 uint8_t g_LED_D2_ON  =0 ;   // LED D2 state initially off
+char system_state_transmit[17] = {} ;
+uint8_t g_transmit_system_state = 1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -153,7 +155,7 @@ void system_state_update(){
 
 		g_EN_measure++  ;
 
-		if(g_EN_measure >1 ){
+		if(g_EN_measure >2 ){
 			g_EN_measure = 0;
 		}
 	}
@@ -204,12 +206,6 @@ int main(void)
   while (1)
   {
 	  system_state_update() ;
-//	  sprintf(g_msg, "%d\n", g_raw) ;
-//	  HAL_UART_Transmit_IT(&huart2,(uint8_t*)g_msg, strlen(g_msg)) ;
-//	  HAL_Delay(100) ;
-
-
-
 
 
 	  // measure Ta & measure Tb
@@ -218,12 +214,12 @@ int main(void)
 		  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
 		  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
 
-		  if(HAL_GetTick() - g_time_passed >= 500 && g_LED_D2_ON == 0){
+		  if(HAL_GetTick() - g_time_passed >= 50 && g_LED_D2_ON == 0){
 			  g_LED_D2_ON = 1; // set D2 on
 			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET) ;
 
 		  }
-		  else if(HAL_GetTick() - g_time_passed >= 1000 && g_LED_D2_ON == 1){
+		  else if(HAL_GetTick() - g_time_passed >= 100 && g_LED_D2_ON == 1){
 			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
 			  g_time_passed =  HAL_GetTick() ;
 			  g_LED_D2_ON = 0;  //set D2 off
@@ -231,8 +227,85 @@ int main(void)
 		  }
 
 	  }
+	  else if(g_EN_measure == 2){
+		  for(int i = 0; i < 17 ; i++){
+			  switch(i){
+			  case 0:
+				  system_state_transmit[0] = '&' ;
+				  break ;
+			  case 1:
+				  system_state_transmit[1] = '_' ;
 
-	  // Flash D3 50ms ON/OFF
+				  break;
+			  case 2:
+				  system_state_transmit[2] = g_temperature[0] ;
+
+				  break;
+			  case 3:
+				  system_state_transmit[3] = g_temperature[1] ;
+
+				  break;
+			  case 4:
+				  system_state_transmit[4] = g_temperature[2] ;
+
+				  break;
+			  case 5:
+				  system_state_transmit[5] = '_' ;
+
+				  break;
+			  case 6:
+				  system_state_transmit[6] = '0' ;
+
+				  break;
+			  case 7:
+				  system_state_transmit[7] = '0' ;
+
+				  break;
+			  case 8:
+				  system_state_transmit[8] = '0' ;
+
+				  break;
+			  case 9:
+				  system_state_transmit[9] = '_' ;
+
+				  break;
+			  case 10:
+				  system_state_transmit[10] = '0' ;
+
+				  break;
+			  case 11:
+				  system_state_transmit[11] = '0' ;
+
+				  break;
+			  case 12:
+				  system_state_transmit[12] = '0' ;
+
+				  break;
+			  case 13:
+				  system_state_transmit[13] = '_' ;
+
+				  break;
+			  case 14:
+				  system_state_transmit[14] = '*' ;
+
+				  break;
+			  case 15:
+				  system_state_transmit[15] = '\n' ;
+
+				  break;
+			  default:
+				  break;
+			  }
+		  }
+		  // Transmit system state via the UART
+		  if(g_transmit_system_state  == 1){
+			  g_transmit_system_state = 0;
+			  HAL_UART_Transmit_IT(&huart2, (uint8_t*)system_state_transmit, 15);
+
+		  }
+
+	  }
+
 
 
 
