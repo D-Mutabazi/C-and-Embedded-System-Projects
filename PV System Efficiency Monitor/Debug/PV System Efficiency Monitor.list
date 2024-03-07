@@ -1128,6 +1128,9 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len){
 
 08000cd0 <system_state_update>:
 
+/**
+ * This function will update the system state based on
+ */
 void system_state_update(){
  8000cd0:	b480      	push	{r7}
  8000cd2:	af00      	add	r7, sp, #0

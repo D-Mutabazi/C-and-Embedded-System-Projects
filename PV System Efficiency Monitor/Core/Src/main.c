@@ -149,6 +149,9 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len){
 	}
 }
 
+/**
+ * This function will update the system state based on
+ */
 void system_state_update(){
 	if(g_top_button_pressed  == 1){
 		g_top_button_pressed = 0;
