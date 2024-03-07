@@ -150,16 +150,34 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len){
 }
 
 /**
- * This function will update the system state based on
+ * This function will update the system state based on the received UART command
+ * or top button press
  */
 void system_state_update(){
-	if(g_top_button_pressed  == 1){
+	if(g_top_button_pressed  == 1 && g_config_command_rcvd ==0){
 		g_top_button_pressed = 0;
 
 		g_EN_measure++  ;
 
 		if(g_EN_measure >2 ){
-			g_EN_measure = 0;
+			g_EN_measure = 1;
+		}
+	}
+	else if(g_top_button_pressed ==0  && g_config_command_rcvd == 1){
+		g_config_command_rcvd = 0;
+		if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='E' && g_system_config[3] == 'N' &&g_system_config[4] =='_'&& g_system_config[5] =='*'){
+			if(g_EN_measure == 0){
+				g_EN_measure = 1;
+			}
+			else if(g_EN_measure == 1){
+				g_EN_measure = 2;
+
+			}
+			else{
+				if(g_EN_measure ==2){
+					g_EN_measure = 1;
+				}
+			}
 		}
 	}
 }
@@ -216,6 +234,8 @@ int main(void)
 
 		  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
 		  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
+		  //re-prime system state update
+		  g_transmit_system_state =1; //send the system state again
 
 		  if(HAL_GetTick() - g_time_passed >= 50 && g_LED_D2_ON == 0){
 			  g_LED_D2_ON = 1; // set D2 on
@@ -231,6 +251,8 @@ int main(void)
 
 	  }
 	  else if(g_EN_measure == 2){
+		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
+
 		  for(int i = 0; i < 17 ; i++){
 			  switch(i){
 			  case 0:
@@ -303,15 +325,11 @@ int main(void)
 		  // Transmit system state via the UART
 		  if(g_transmit_system_state  == 1){
 			  g_transmit_system_state = 0;
-			  HAL_UART_Transmit_IT(&huart2, (uint8_t*)system_state_transmit, 15);
+			  HAL_UART_Transmit_IT(&huart2, (uint8_t*)system_state_transmit, 16);
 
 		  }
 
 	  }
-
-
-
-
 
     /* USER CODE END WHILE */
 
