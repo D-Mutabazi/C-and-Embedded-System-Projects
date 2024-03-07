@@ -32,6 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define LEN 3
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -73,6 +74,8 @@ static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
+uint16_t get_adc_value_and_celsius_temperature() ;
+void store_temp_in_string(uint16_t temperature, char temp[], int len) ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -87,8 +90,46 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
 }
 
+/**
+ * function starts the adc, waits for conversion
+ * Then converts value to degrees
+ */
 
+uint16_t get_adc_value_and_celsius_temperature(){
 
+	HAL_ADC_Start(&hadc1) ;
+	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+	g_raw  = HAL_ADC_GetValue(&hadc1) ;
+
+	g_vin = g_raw*(3.3/4095.0) ; // input voltage
+	g_temp = g_vin*100 - 273.15 ; // cast to 16 bit uint
+
+	return g_temp ;
+}
+
+void store_temp_in_string(uint16_t temperature, char temp[], int len){
+
+	for(int i= 0 ; i < len ; i++){
+		switch(i){
+			case 0:
+				temp[0]  = (temperature/100) + 48 ;
+
+				break;
+			case 1:
+				temp[1] = (temperature - (temperature/100)*100 )/10 + 48 ;
+
+				break;
+			case 2:
+				temp[2] = (temperature - ((temperature/10)*10) ) + 48 ;
+
+				break;
+			default:
+				break;
+
+		}
+
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -134,17 +175,9 @@ int main(void)
   {
 
 	  // temp sens
-	  HAL_ADC_Start(&hadc1) ;
-	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-	  g_raw  = HAL_ADC_GetValue(&hadc1) ;
 
-	  g_vin = g_raw*(3.3/4095.0) ; // input voltage
-	  g_temp = g_vin*100 - 273.15 ;
-	  g_temp_in_deg = (uint16_t)g_temp ;
-
-	  g_temperature[0]  = (g_temp_in_deg/100) + 48 ;
-	  g_temperature[1] = (g_temp_in_deg - (g_temp_in_deg/100)*100 )/10 + 48 ;
-	  g_temperature[2] = (g_temp_in_deg - ((g_temp_in_deg/10)*10) ) + 48 ;
+	  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
+	  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
 
 	  sprintf(g_msg, "%d\n", g_raw) ;
 	  HAL_UART_Transmit_IT(&huart2,(uint8_t*)g_msg, strlen(g_msg)) ;
