@@ -65,6 +65,13 @@ double g_vin = 0 ;
 uint16_t g_temp_in_deg = 0 ;
 char g_temperature[3]= {} ;
 
+//LMTO1 senso
+extern uint32_t pulse_count ;
+uint8_t Tsp_temp_ready = 0 ;
+uint32_t g_pulse_window_period =  0 ;
+uint16_t g_num_pulses = 0;
+double g_TO1_temp = 0;
+
 // SYSTEM state machine variables
 char g_system_config[17] = {} ;
 uint8_t g_byte_count = 0 ;
@@ -220,6 +227,8 @@ int main(void)
   HAL_UART_Receive_IT(&huart2, (uint8_t*)char_rcvd, 1) ;
 
   g_time_passed = HAL_GetTick() ; //snapshot of time
+  g_pulse_window_period  = HAL_GetTick() ;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -232,8 +241,23 @@ int main(void)
 	  // measure Ta & measure Tb
 	  if(g_EN_measure == 1){
 
+		  //ANALOGUE SENSOR CALIBRATION
 		  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
 		  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
+
+		  // DIGITAL SENSOR CALIBRATION
+		  if(HAL_GetTick() - g_pulse_window_period >=104){
+			  g_num_pulses = pulse_count ;
+			  g_TO1_temp =  (pulse_count/4096.0)*256-50 ;  // fluctuation in temperature - due to PCB issues?
+
+
+			  pulse_count = 0 ;
+			  g_pulse_window_period  = HAL_GetTick()  ;
+
+
+		  }
+
+
 		  //re-prime system state update
 		  g_transmit_system_state =1; //send the system state again
 
@@ -496,6 +520,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : LMTO1_GPIO_EXTI2_Pin */
+  GPIO_InitStruct.Pin = LMTO1_GPIO_EXTI2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(LMTO1_GPIO_EXTI2_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pins : LD2_Pin PA10 */
   GPIO_InitStruct.Pin = LD2_Pin|GPIO_PIN_10;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -523,6 +553,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
