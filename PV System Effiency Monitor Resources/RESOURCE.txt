@@ -1,3 +1,6 @@
 Resources:
 - circuit board connections
 https://www.youtube.com/watch?v=MUX6rcU28h8
+- timers and timer interrupts
+https://www.youtube.com/watch?v=VfbW6nfG4kw
+https://www.youtube.com/watch?v=CObY3Cs97Fs
