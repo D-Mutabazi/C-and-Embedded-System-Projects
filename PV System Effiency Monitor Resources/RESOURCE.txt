@@ -4,3 +4,6 @@ https://www.youtube.com/watch?v=MUX6rcU28h8
 - timers and timer interrupts
 https://www.youtube.com/watch?v=VfbW6nfG4kw
 https://www.youtube.com/watch?v=CObY3Cs97Fs
+https://deepbluembedded.com/stm32-counter-mode-example-frequency-counter-timer-in-counter-mode/
+https://microcontrollerslab.com/stm32-blue-pill-timer-counter-mode-stm32cube-ide/
+https://community.st.com/t5/stm32-mcus-products/count-external-pulses-using-timer/td-p/59349
