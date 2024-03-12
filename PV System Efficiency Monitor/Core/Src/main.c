@@ -200,7 +200,8 @@ void system_state_update(){
 uint32_t current_value = 0  ;
 uint32_t g_time_between_pulses =  0;
 uint8_t g_new_pulse = 0;
-
+uint16_t g_lmt01_sens_temp =  0 ;
+char dig_sens_temp[3] = {};
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
   /* Prevent unused argument(s) compilation warning */
@@ -286,6 +287,8 @@ int main(void)
 		  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
 
 		  // DIGITAL SENSOR CALIBRATION
+		  g_lmt01_sens_temp =  (uint16_t)g_TO1_temp ;
+		  store_temp_in_string(g_lmt01_sens_temp, dig_sens_temp, LEN) ;
 
 		  //re-prime system state update
 		  g_transmit_system_state =1; //send the system state again
@@ -333,15 +336,15 @@ int main(void)
 
 				  break;
 			  case 6:
-				  system_state_transmit[6] = '0' ;
+				  system_state_transmit[6] = dig_sens_temp[0] ;
 
 				  break;
 			  case 7:
-				  system_state_transmit[7] = '0' ;
+				  system_state_transmit[7] = dig_sens_temp[1] ;
 
 				  break;
 			  case 8:
-				  system_state_transmit[8] = '0' ;
+				  system_state_transmit[8] = dig_sens_temp[2] ;
 
 				  break;
 			  case 9:
