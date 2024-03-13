@@ -100,6 +100,8 @@ uint16_t get_adc_value_and_celsius_temperature() ;
 void store_temp_in_string(uint16_t temperature, char temp[], int len) ;
 void system_state_update() ;
 void flash_led_d3() ;
+void store_system_state_in_buffer(char analog_temp[], char dig_temp[], char system_state[], uint8_t len_of_sys_arr );
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -250,6 +252,77 @@ void flash_led_d3(){
 }
 
 
+void store_system_state_in_buffer(char analog_temp[], char dig_temp[], char system_state[], uint8_t len_of_sys_arr ){
+	  for(int i = 0; i < len_of_sys_arr ; i++){
+		  switch(i){
+		  case 0:
+			  system_state_transmit[0] = '&' ;
+			  break ;
+		  case 1:
+			  system_state_transmit[1] = '_' ;
+
+			  break;
+		  case 2:
+			  system_state_transmit[2] = analog_temp[0] ;
+
+			  break;
+		  case 3:
+			  system_state_transmit[3] = analog_temp[1] ;
+
+			  break;
+		  case 4:
+			  system_state_transmit[4] = analog_temp[2] ;
+
+			  break;
+		  case 5:
+			  system_state_transmit[5] = '_' ;
+
+			  break;
+		  case 6:
+			  system_state_transmit[6] = dig_temp[0] ;
+
+			  break;
+		  case 7:
+			  system_state_transmit[7] = dig_temp[1] ;
+
+			  break;
+		  case 8:
+			  system_state_transmit[8] = dig_temp[2] ;
+
+			  break;
+		  case 9:
+			  system_state_transmit[9] = '_' ;
+
+			  break;
+		  case 10:
+			  system_state_transmit[10] = '0' ;
+
+			  break;
+		  case 11:
+			  system_state_transmit[11] = '0' ;
+
+			  break;
+		  case 12:
+			  system_state_transmit[12] = '0' ;
+
+			  break;
+		  case 13:
+			  system_state_transmit[13] = '_' ;
+
+			  break;
+		  case 14:
+			  system_state_transmit[14] = '*' ;
+
+			  break;
+		  case 15:
+			  system_state_transmit[15] = '\n' ;
+
+			  break;
+		  default:
+			  break;
+		  }
+	  }
+}
 /* USER CODE END 0 */
 
 /**
@@ -324,76 +397,9 @@ int main(void)
 		  //set LED D3
 		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
 
+		  //store system state to transmit
+		  store_system_state_in_buffer(g_temperature, dig_sens_temp, system_state_transmit, 17) ;
 
-		  for(int i = 0; i < 17 ; i++){
-			  switch(i){
-			  case 0:
-				  system_state_transmit[0] = '&' ;
-				  break ;
-			  case 1:
-				  system_state_transmit[1] = '_' ;
-
-				  break;
-			  case 2:
-				  system_state_transmit[2] = g_temperature[0] ;
-
-				  break;
-			  case 3:
-				  system_state_transmit[3] = g_temperature[1] ;
-
-				  break;
-			  case 4:
-				  system_state_transmit[4] = g_temperature[2] ;
-
-				  break;
-			  case 5:
-				  system_state_transmit[5] = '_' ;
-
-				  break;
-			  case 6:
-				  system_state_transmit[6] = dig_sens_temp[0] ;
-
-				  break;
-			  case 7:
-				  system_state_transmit[7] = dig_sens_temp[1] ;
-
-				  break;
-			  case 8:
-				  system_state_transmit[8] = dig_sens_temp[2] ;
-
-				  break;
-			  case 9:
-				  system_state_transmit[9] = '_' ;
-
-				  break;
-			  case 10:
-				  system_state_transmit[10] = '0' ;
-
-				  break;
-			  case 11:
-				  system_state_transmit[11] = '0' ;
-
-				  break;
-			  case 12:
-				  system_state_transmit[12] = '0' ;
-
-				  break;
-			  case 13:
-				  system_state_transmit[13] = '_' ;
-
-				  break;
-			  case 14:
-				  system_state_transmit[14] = '*' ;
-
-				  break;
-			  case 15:
-				  system_state_transmit[15] = '\n' ;
-
-				  break;
-			  default:
-				  break;
-			  }
-		  }
 		  // Transmit system state via the UART
 		  if(g_transmit_system_state  == 1){
 			  g_transmit_system_state = 0;
