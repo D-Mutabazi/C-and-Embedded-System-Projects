@@ -99,6 +99,7 @@ static void MX_TIM3_Init(void);
 uint16_t get_adc_value_and_celsius_temperature() ;
 void store_temp_in_string(uint16_t temperature, char temp[], int len) ;
 void system_state_update() ;
+void flash_led_d3() ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -111,6 +112,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(char_rcvd[0] == '\n'){
 		if(g_byte_count == 7){
 			g_config_command_rcvd = 1;
+		}
+		else{
+			// remove for next DEMO
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Invalid command sent\n", 21);
 		}
 
 		g_byte_count =0 ;
@@ -226,6 +231,24 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
   }
 }
 
+/**
+ * Function flashed LED D3 at specified interval of 50 ms
+ */
+void flash_led_d3(){
+	if(HAL_GetTick() - g_time_passed >= 50 && g_LED_D2_ON == 0){
+		g_LED_D2_ON = 1; // set D2 on
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET) ;
+
+	}
+	else if(HAL_GetTick() - g_time_passed >= 100 && g_LED_D2_ON == 1){
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
+		g_time_passed =  HAL_GetTick() ;
+		g_LED_D2_ON = 0;  //set D2 off
+
+	}
+
+}
+
 
 /* USER CODE END 0 */
 
@@ -293,20 +316,12 @@ int main(void)
 		  //re-prime system state update
 		  g_transmit_system_state =1; //send the system state again
 
-		  if(HAL_GetTick() - g_time_passed >= 50 && g_LED_D2_ON == 0){
-			  g_LED_D2_ON = 1; // set D2 on
-			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET) ;
-
-		  }
-		  else if(HAL_GetTick() - g_time_passed >= 100 && g_LED_D2_ON == 1){
-			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
-			  g_time_passed =  HAL_GetTick() ;
-			  g_LED_D2_ON = 0;  //set D2 off
-
-		  }
+		  //Flash D3 LED -> put in function
+		  flash_led_d3();
 
 	  }
 	  else if(g_EN_measure == 2){
+		  //set LED D3
 		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
 
 
