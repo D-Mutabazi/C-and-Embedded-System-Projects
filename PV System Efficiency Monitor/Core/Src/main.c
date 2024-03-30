@@ -117,7 +117,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 		}
 		else{
 			// remove for next DEMO
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Invalid command sent\n", 21);
+//			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Invalid command sent\n", 21);
+			// DO NOTHING: NO STATE UPDATE IN THE CASE OF COMMAND NOT IN THE APPROPRIATE ORDER
+
 		}
 
 		g_byte_count =0 ;
@@ -184,7 +186,7 @@ void system_state_update(){
 	}
 	else if(g_top_button_pressed ==0  && g_config_command_rcvd == 1){
 		g_config_command_rcvd = 0;
-		if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='E' && g_system_config[3] == 'N' &&g_system_config[4] =='_'&& g_system_config[5] =='*'){
+		if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='E' && g_system_config[3] == 'N' &&g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
 			if(g_EN_measure == 0){
 				g_EN_measure = 1;
 			}
@@ -197,6 +199,10 @@ void system_state_update(){
 					g_EN_measure = 1;
 				}
 			}
+		}
+		//else block to not update g_EN_measure if incorrent command revcd
+		else{
+			g_EN_measure =  g_EN_measure ;
 		}
 	}
 }
@@ -226,7 +232,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 		  pulse_count++ ;
 
 	  }else{
-		  g_TO1_temp = (pulse_count/4094.0)*256 - 50 ; //calculate new temp
+		  g_TO1_temp = (pulse_count/4096.0)*256 - 50 ; //calculate new temp - BUG Fixed: 4094 changed to 4096
 		 current_value = __HAL_TIM_GET_COUNTER(&htim2) ;
 		 pulse_count = 0;
 	  }
