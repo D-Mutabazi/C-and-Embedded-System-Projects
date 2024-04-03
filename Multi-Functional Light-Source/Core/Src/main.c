@@ -981,6 +981,11 @@ int main(void)
   strobe_ticks  = HAL_GetTick() ;
   morse_current_time = HAL_GetTick() ;
   int readCha = 1;
+
+
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+  HAL_Delay(1);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET) ;
   /* USER CODE END 2 */
 
   /* Infinite loop */
