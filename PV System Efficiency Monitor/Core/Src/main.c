@@ -80,9 +80,19 @@ uint16_t g_temp_in_deg_dig_sens = 0;
 char g_system_config[17] = {} ;
 uint8_t g_byte_count = 0 ;
 uint8_t g_config_command_rcvd = 0;    // check for when config recvd
+
+// EN measure
 uint8_t g_EN_measure= 0;
 uint32_t g_time_passed = 0 ;
+uint8_t g_LED_D3_ON  =0 ;   // LED D3 state initially off
+uint8_t g_EN_config_command_rcvd = 0;
+
+// EN measure
+uint8_t g_SP_measure= 0;
 uint8_t g_LED_D2_ON  =0 ;   // LED D2 state initially off
+uint8_t g_SP_config_command_rcvd = 0;
+
+
 char system_state_transmit[17] = {} ;
 uint8_t g_transmit_system_state = 1;
 /* USER CODE END PV */
@@ -100,6 +110,7 @@ uint16_t get_adc_value_and_celsius_temperature() ;
 void store_temp_in_string(uint16_t temperature, char temp[], int len) ;
 void system_state_update() ;
 void flash_led_d3() ;
+void flash_led_d2() ;
 void store_system_state_in_buffer(char analog_temp[], char dig_temp[], char system_state[], uint8_t len_of_sys_arr );
 
 /* USER CODE END PFP */
@@ -114,12 +125,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 	if(char_rcvd[0] == '\n'){
 		if(g_byte_count == 7){
 			g_config_command_rcvd = 1;
+			// check for SP or EN command recvd
 		}
 		else{
 			// remove for next DEMO
-//			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Invalid command sent\n", 21);
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Invalid command sent\n", 21);
 			// DO NOTHING: NO STATE UPDATE IN THE CASE OF COMMAND NOT IN THE APPROPRIATE ORDER
-
 		}
 
 		g_byte_count =0 ;
@@ -175,7 +186,34 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len){
  * or top button press
  */
 void system_state_update(){
-	if(g_top_button_pressed  == 1 && g_config_command_rcvd ==0){
+
+	//CHECK FOR TYPE OF MEASUREMENT
+	if( g_config_command_rcvd == 1){
+		g_config_command_rcvd = 0;
+
+		if( g_system_config[2]=='E' && g_system_config[3] == 'N'){
+			// EN measure comand
+			g_EN_config_command_rcvd =1 ;
+			//stop SP measure
+			g_SP_config_command_rcvd =0 ;
+
+		}
+
+		else if(g_system_config[2]=='S' && g_system_config[3] == 'P'){
+			// SP command
+			g_SP_config_command_rcvd =1 ;
+			//stop EN command
+			g_EN_config_command_rcvd =0;
+
+		}
+
+		else{
+			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Invalid Command\n", 16);
+		}
+	}
+
+	// Environment Measure - And not measuring SP
+	if(g_top_button_pressed  == 1 && g_EN_config_command_rcvd ==0 && g_SP_config_command_rcvd ==0 && (g_SP_measure == 0 || g_SP_measure ==2)){
 		g_top_button_pressed = 0;
 
 		g_EN_measure++  ;
@@ -184,8 +222,8 @@ void system_state_update(){
 			g_EN_measure = 1;
 		}
 	}
-	else if(g_top_button_pressed ==0  && g_config_command_rcvd == 1){
-		g_config_command_rcvd = 0;
+	else if(g_top_button_pressed ==0  && g_EN_config_command_rcvd == 1 && g_SP_config_command_rcvd ==0  && (g_SP_measure == 0 || g_SP_measure ==2)){
+		g_EN_config_command_rcvd = 0;
 		if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='E' && g_system_config[3] == 'N' &&g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
 			if(g_EN_measure == 0){
 				g_EN_measure = 1;
@@ -205,6 +243,40 @@ void system_state_update(){
 			g_EN_measure =  g_EN_measure ;
 		}
 	}
+
+
+
+	//SP Measure
+	if(g_bottom_button_pressed  == 1  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==0  && (g_EN_measure == 0 || g_EN_measure ==2)){
+			g_bottom_button_pressed = 0;
+
+			g_SP_measure++  ;
+
+			if(g_SP_measure >2 ){
+				g_SP_measure = 1;
+			}
+		}
+		else if(g_bottom_button_pressed ==0  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==1 && (g_EN_measure == 0 || g_EN_measure ==2)){
+			g_SP_config_command_rcvd = 0;
+			if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='S' && g_system_config[3] == 'P' &&g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
+				if(g_SP_measure == 0){
+					g_SP_measure = 1;
+				}
+				else if(g_SP_measure == 1){
+					g_SP_measure = 2;
+
+				}
+				else{
+					if(g_SP_measure ==2){
+						g_SP_measure = 1;
+					}
+				}
+			}
+			//else block to not update g_EN_measure if incorrent command revcd
+			else{
+				g_SP_measure =  g_SP_measure ;
+			}
+		}
 }
 
 /**
@@ -243,20 +315,37 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
  * Function flashed LED D3 at specified interval of 50 ms
  */
 void flash_led_d3(){
-	if(HAL_GetTick() - g_time_passed >= 50 && g_LED_D2_ON == 0){
-		g_LED_D2_ON = 1; // set D2 on
+	if(HAL_GetTick() - g_time_passed >= 50 && g_LED_D3_ON == 0){
+		g_LED_D3_ON = 1; // set D2 on
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET) ;
 
 	}
-	else if(HAL_GetTick() - g_time_passed >= 100 && g_LED_D2_ON == 1){
+	else if(HAL_GetTick() - g_time_passed >= 100 && g_LED_D3_ON == 1){
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
+		g_time_passed =  HAL_GetTick() ;
+		g_LED_D3_ON = 0;  //set D2 off
+
+	}
+
+}
+
+/**
+ * Function flashed LED D2 at specified interval of 100 ms
+ */
+void flash_led_d2(){
+	if(HAL_GetTick() - g_time_passed >= 100 && g_LED_D2_ON == 0){
+		g_LED_D2_ON = 1; // set D2 on
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET) ;
+
+	}
+	else if(HAL_GetTick() - g_time_passed >= 200 && g_LED_D2_ON == 1){
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET) ;
 		g_time_passed =  HAL_GetTick() ;
 		g_LED_D2_ON = 0;  //set D2 off
 
 	}
 
 }
-
 
 void store_system_state_in_buffer(char analog_temp[], char dig_temp[], char system_state[], uint8_t len_of_sys_arr ){
 	  for(int i = 0; i < len_of_sys_arr ; i++){
@@ -381,9 +470,14 @@ int main(void)
   {
 	  system_state_update() ;
 
-	  // measure Ta & measure Tb
+	  //UR3: Evironment measure: measure Ta & measure Tb
 	  if(g_EN_measure == 1){
 
+		  // ignore bottom button press and SP command while measuring
+		  if(g_bottom_button_pressed ==1 || g_SP_config_command_rcvd ==1){
+			  g_bottom_button_pressed = 0 ;
+			  g_SP_config_command_rcvd = 0 ;
+		  }
 		  //ANALOGUE SENSOR CALIBRATION
 		  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
 		  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
@@ -414,6 +508,26 @@ int main(void)
 		  }
 
 	  }
+
+	  //UR2: PV Module
+	  if(g_SP_measure == 1){
+		  // ignore top button press and EN command while measuring
+		  if(g_top_button_pressed ==1 || g_EN_config_command_rcvd ==1){
+			  g_top_button_pressed = 0 ;
+			  g_EN_config_command_rcvd = 0;
+		  }
+		  //Flash D2 LED
+		  flash_led_d2() ;
+	  }
+
+	  else if(g_SP_measure == 2){
+		  //set LED D2
+		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET) ;
+
+	  }
+
+
+
 
     /* USER CODE END WHILE */
 
@@ -677,12 +791,6 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10|GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
-
   /*Configure GPIO pins : LD2_Pin PA10 */
   GPIO_InitStruct.Pin = LD2_Pin|GPIO_PIN_10;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -703,8 +811,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB8 PB9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
+  /*Configure GPIO pins : PB13 PB8 PB9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_8|GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);

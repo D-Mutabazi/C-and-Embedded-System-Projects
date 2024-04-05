@@ -366,8 +366,31 @@ void EXTI15_10_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI15_10_IRQn 0 */
 
+
+	if(__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_13) != RESET){
+
+		if(HAL_GetTick() - ticks_pressed >= 20){
+			// stable low state
+			if(button_state == 1  && HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == 0){
+				button_state =0 ; // stable low reached
+				ticks_pressed = HAL_GetTick() ;
+
+				g_bottom_button_pressed = 1 ;
+			}
+
+			// stable high state
+			if(button_state == 0 && HAL_GPIO_ReadPin(GPIOB ,GPIO_PIN_13) == 1 ){
+				ticks_pressed = HAL_GetTick() ;
+				button_state =1 ; // stable high state
+
+			}
+		}
+
+		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_13) ;
+	}
+
   /* USER CODE END EXTI15_10_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(B1_Pin);
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
   /* USER CODE END EXTI15_10_IRQn 1 */

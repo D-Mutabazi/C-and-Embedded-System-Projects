@@ -7,3 +7,16 @@ https://www.youtube.com/watch?v=CObY3Cs97Fs
 https://deepbluembedded.com/stm32-counter-mode-example-frequency-counter-timer-in-counter-mode/
 https://microcontrollerslab.com/stm32-blue-pill-timer-counter-mode-stm32cube-ide/
 https://community.st.com/t5/stm32-mcus-products/count-external-pulses-using-timer/td-p/59349
+
+DEMO 3
+https://www.youtube.com/watch?v=pzVmHoEDlB4
+https://www.youtube.com/watch?v=j20d4HLKgR8
+**https://www.youtube.com/watch?v=cXpeTxC3_A4 
+https://www.youtube.com/watch?v=ITTBWSQTi3c
+
+
+
+
+--- 
+desoldering:
+https://www.youtube.com/watch?v=bG7yW9FigJA
