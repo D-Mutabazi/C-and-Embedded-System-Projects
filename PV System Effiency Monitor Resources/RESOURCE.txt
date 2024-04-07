@@ -18,7 +18,9 @@ https://www.youtube.com/watch?v=1LqUljBXLqw
 **https://www.youtube.com/watch?v=ITTBWSQTi3c&t=445s (code provided)
 https://www.youtube.com/watch?v=_tosXa3da-g (code provided)
 
-
+READ
+https://www.allaboutcircuits.com/technical-articles/how-to-a-162-lcd-module-with-an-mcu/
+https://hackprojects.wordpress.com/forum/8051-2/interfacing-16x2-lcd-to-8051-microcontroller/
 
 --- 
 desoldering:

@@ -287,6 +287,7 @@ uint32_t g_time_between_pulses =  0;
 uint8_t g_new_pulse = 0;
 uint16_t g_lmt01_sens_temp =  0 ;
 char dig_sens_temp[3] = {};
+
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
   /* Prevent unused argument(s) compilation warning */
