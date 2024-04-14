@@ -63,12 +63,34 @@ void Error_Handler(void);
 #define USART_RX_GPIO_Port GPIOA
 #define LD2_Pin GPIO_PIN_5
 #define LD2_GPIO_Port GPIOA
+#define E_Line_Pin GPIO_PIN_2
+#define E_Line_GPIO_Port GPIOB
+#define LED_D4_Pin GPIO_PIN_10
+#define LED_D4_GPIO_Port GPIOB
+#define DB4_Line_Pin GPIO_PIN_12
+#define DB4_Line_GPIO_Port GPIOB
+#define RS_Line_Pin GPIO_PIN_14
+#define RS_Line_GPIO_Port GPIOB
+#define R_W_Line_Pin GPIO_PIN_15
+#define R_W_Line_GPIO_Port GPIOB
+#define DB7_Line_Pin GPIO_PIN_6
+#define DB7_Line_GPIO_Port GPIOC
+#define LED_D5_Pin GPIO_PIN_10
+#define LED_D5_GPIO_Port GPIOA
+#define DB5_Line_Pin GPIO_PIN_11
+#define DB5_Line_GPIO_Port GPIOA
+#define DB6_Line_Pin GPIO_PIN_12
+#define DB6_Line_GPIO_Port GPIOA
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
+#define LED_D2_Pin GPIO_PIN_4
+#define LED_D2_GPIO_Port GPIOB
+#define LED_D3_Pin GPIO_PIN_5
+#define LED_D3_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

@@ -23,6 +23,8 @@
 /* USER CODE BEGIN Includes */
 #include "string.h"
 #include <stdio.h>
+#include "lcd.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -429,6 +431,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -463,6 +466,27 @@ int main(void)
 
   g_time_passed = HAL_GetTick() ; //snapshot of time
 
+  //Write to LCD
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET) ;
+  // Lcd_PortType ports[] = { D4_GPIO_Port, D5_GPIO_Port, D6_GPIO_Port, D7_GPIO_Port };
+  Lcd_PortType ports[] = { GPIOB, GPIOA, GPIOA, GPIOC };
+  // Lcd_PinType pins[] = {D4_Pin, D5_Pin, D6_Pin, D7_Pin};
+  Lcd_PinType pins[] = {GPIO_PIN_12, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_6};
+  Lcd_HandleTypeDef lcd;
+  // Lcd_create(ports, pins, RS_GPIO_Port, RS_Pin, EN_GPIO_Port, EN_Pin, LCD_4_BIT_MODE);
+  lcd = Lcd_create(ports, pins, GPIOB, GPIO_PIN_14, GPIOB, GPIO_PIN_2, LCD_4_BIT_MODE);
+  Lcd_cursor(&lcd, 0,3);
+  Lcd_string(&lcd, "Too SAUCY!");
+  for ( int x = 1; x <= 200 ; x++ ){
+	Lcd_cursor(&lcd, 1,7);
+	Lcd_int(&lcd, x);
+	HAL_Delay (1000);
+  }
+
+  //lcd setup
+
+  // write data
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -471,7 +495,7 @@ int main(void)
   {
 	  system_state_update() ;
 
-	  //UR3: Evironment measure: measure Ta & measure Tb
+	  //UR3: Evironment measure: measure Ta & measure Tb  (Put in Function)/Modularize
 	  if(g_EN_measure == 1){
 
 		  // ignore bottom button press and SP command while measuring
@@ -510,7 +534,7 @@ int main(void)
 
 	  }
 
-	  //UR2: PV Module
+	  //UR2: PV Module -(Put in Function)/Modularize
 	  if(g_SP_measure == 1){
 		  // ignore top button press and EN command while measuring
 		  if(g_top_button_pressed ==1 || g_EN_config_command_rcvd ==1){
@@ -787,13 +811,17 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LD2_Pin|GPIO_PIN_10, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LD2_Pin|LED_D5_Pin|DB5_Line_Pin|DB6_Line_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10|GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, E_Line_Pin|LED_D4_Pin|DB4_Line_Pin|RS_Line_Pin
+                          |R_W_Line_Pin|LED_D2_Pin|LED_D3_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : LD2_Pin PA10 */
-  GPIO_InitStruct.Pin = LD2_Pin|GPIO_PIN_10;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(DB7_Line_GPIO_Port, DB7_Line_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : LD2_Pin LED_D5_Pin DB5_Line_Pin DB6_Line_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin|LED_D5_Pin|DB5_Line_Pin|DB6_Line_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -805,8 +833,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB10 PB4 PB5 */
-  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_4|GPIO_PIN_5;
+  /*Configure GPIO pins : E_Line_Pin LED_D4_Pin DB4_Line_Pin RS_Line_Pin
+                           R_W_Line_Pin LED_D2_Pin LED_D3_Pin */
+  GPIO_InitStruct.Pin = E_Line_Pin|LED_D4_Pin|DB4_Line_Pin|RS_Line_Pin
+                          |R_W_Line_Pin|LED_D2_Pin|LED_D3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -817,6 +847,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : DB7_Line_Pin */
+  GPIO_InitStruct.Pin = DB7_Line_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(DB7_Line_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
