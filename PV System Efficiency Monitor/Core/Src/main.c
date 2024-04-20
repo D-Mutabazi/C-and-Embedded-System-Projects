@@ -78,6 +78,12 @@ uint16_t g_num_pulses = 0;
 double g_TO1_temp = 0;
 uint16_t g_temp_in_deg_dig_sens = 0;
 
+//SFH235 Photodiode
+uint16_t g_raw_lux_value = 0; ;
+uint16_t g_get_lxd_value= 0;
+char g_lxd_value[3] = {} ;
+
+
 // SYSTEM state machine variables
 char g_system_config[17] = {} ;
 uint8_t g_byte_count = 0 ;
@@ -97,6 +103,7 @@ uint8_t g_SP_config_command_rcvd = 0;
 
 char system_state_transmit[17] = {} ;
 uint8_t g_transmit_system_state = 1;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -113,9 +120,13 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len) ;
 void system_state_update() ;
 void flash_led_d3() ;
 void flash_led_d2() ;
-void store_system_state_in_buffer(char analog_temp[], char dig_temp[], char system_state[], uint8_t len_of_sys_arr );
+void store_system_state_in_buffer(char analog_temp[], char dig_temp[],char lux_value[],char system_state[], uint8_t len_of_sys_arr );
 void en_measurement_and_response() ;
-
+void ADC_Select_CH0(void) ;
+void ADC_Select_CH14(void);
+void ADC_Select_CH9(void);
+void ADC_Select_CH15(void);
+uint16_t get_adc_value_conver_to_lux();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -151,9 +162,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
 uint16_t get_adc_value_and_celsius_temperature(){
 
+	//select adc channel 0
+	ADC_Select_CH0() ;
 	HAL_ADC_Start(&hadc1) ;
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	g_raw  = HAL_ADC_GetValue(&hadc1) ;
+	HAL_ADC_Stop(&hadc1) ;  //stop adc
 
 	g_vin = g_raw*(3.3/4095.0) ; // input voltage
 	g_temp = g_vin*100 - 273.15 ; // cast to 16 bit uint
@@ -351,7 +365,7 @@ void flash_led_d2(){
 
 }
 
-void store_system_state_in_buffer(char analog_temp[], char dig_temp[], char system_state[], uint8_t len_of_sys_arr ){
+void store_system_state_in_buffer(char analog_temp[], char dig_temp[],char lux_value[],char system_state[], uint8_t len_of_sys_arr ){
 	  for(int i = 0; i < len_of_sys_arr ; i++){
 		  switch(i){
 		  case 0:
@@ -394,15 +408,15 @@ void store_system_state_in_buffer(char analog_temp[], char dig_temp[], char syst
 
 			  break;
 		  case 10:
-			  system_state_transmit[10] = '0' ;
+			  system_state_transmit[10] = lux_value[0] ;
 
 			  break;
 		  case 11:
-			  system_state_transmit[11] = '0' ;
+			  system_state_transmit[11] = lux_value[1] ;
 
 			  break;
 		  case 12:
-			  system_state_transmit[12] = '0' ;
+			  system_state_transmit[12] = lux_value[2] ;
 
 			  break;
 		  case 13:
@@ -423,7 +437,81 @@ void store_system_state_in_buffer(char analog_temp[], char dig_temp[], char syst
 	  }
 }
 
+//digital sensore
+void ADC_Select_CH0(void){
+	ADC_ChannelConfTypeDef sConfig = {0};
 
+	sConfig.Channel = ADC_CHANNEL_0;
+	sConfig.Rank = 1;
+	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+
+}
+// photodiode
+void ADC_Select_CH14(void){
+	ADC_ChannelConfTypeDef sConfig = {0};
+
+	/** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+	*/
+	sConfig.Channel = ADC_CHANNEL_14;
+	sConfig.Rank = 1;
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+
+}
+
+//PV- Panel- ADC 1
+void ADC_Select_CH9(void){
+	ADC_ChannelConfTypeDef sConfig = {0};
+
+	/** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+	*/
+	sConfig.Channel = ADC_CHANNEL_9;
+	sConfig.Rank = 1;
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
+}
+
+//PV - Panel - ADC2
+void ADC_Select_CH15(void){
+	ADC_ChannelConfTypeDef sConfig = {0};
+
+	/** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+	*/
+	sConfig.Channel = ADC_CHANNEL_15;
+	sConfig.Rank = 1;
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
+}
+
+/**
+ * Function starts ADC CH14, connected to ouput of light diode
+ * get the ADC value of diode
+ */
+uint16_t get_adc_value_conver_to_lux(){
+	ADC_Select_CH14() ;
+	HAL_ADC_Start(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) ;
+	g_raw_lux_value = HAL_ADC_GetValue(&hadc1) ;
+	HAL_ADC_Stop(&hadc1);
+
+	//scale adc value [0,999]
+	g_raw_lux_value = g_raw_lux_value*(999.0/4095.0) ;
+
+	return g_raw_lux_value ;
+
+}
 /**
  * This funtion performs the measurement for UR3: Environement measure.
  * It measures the ambient temperature, solar panel temperature and light intensity,
@@ -516,12 +604,19 @@ int main(void)
 		  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
 		  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
 
+		  //PHOTODIOCE ouput
+		  g_get_lxd_value = get_adc_value_conver_to_lux();
+		  store_temp_in_string(g_get_lxd_value, g_lxd_value, LEN);
+
 		  // DIGITAL SENSOR CALIBRATION
 		  g_lmt01_sens_temp =  (uint16_t)g_TO1_temp ;
 		  store_temp_in_string(g_lmt01_sens_temp, dig_sens_temp, LEN) ;
 
 		  //re-prime system state update
-		  g_transmit_system_state =1; //send the system state again
+		  if(g_transmit_system_state ==0){
+			  g_transmit_system_state =1; //send the system state again
+
+		  }
 
 		  //Flash D3 LED -> put in function
 		  flash_led_d3();
@@ -532,7 +627,7 @@ int main(void)
 		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
 
 		  //store system state to transmit
-		  store_system_state_in_buffer(g_temperature, dig_sens_temp, system_state_transmit, 17) ;
+		  store_system_state_in_buffer(g_temperature, dig_sens_temp,g_lxd_value,  system_state_transmit, 17) ;
 
 		  // Transmit system state via the UART
 		  if(g_transmit_system_state  == 1){
@@ -628,7 +723,7 @@ static void MX_ADC1_Init(void)
 
   /* USER CODE END ADC1_Init 0 */
 
-  ADC_ChannelConfTypeDef sConfig = {0};
+//  ADC_ChannelConfTypeDef sConfig = {0};
 
   /* USER CODE BEGIN ADC1_Init 1 */
 
@@ -639,7 +734,7 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ScanConvMode = ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -655,13 +750,40 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_0;
-  sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
+//  sConfig.Channel = ADC_CHANNEL_0;
+//  sConfig.Rank = 1;
+//  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+//  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//
+//  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+//  */
+//  sConfig.Channel = ADC_CHANNEL_14;
+//  sConfig.Rank = 2;
+//  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//
+//  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+//  */
+//  sConfig.Channel = ADC_CHANNEL_9;
+//  sConfig.Rank = 3;
+//  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//
+//  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+//  */
+//  sConfig.Channel = ADC_CHANNEL_15;
+//  sConfig.Rank = 4;
+//  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
