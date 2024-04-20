@@ -25,3 +25,6 @@ https://hackprojects.wordpress.com/forum/8051-2/interfacing-16x2-lcd-to-8051-mic
 --- 
 desoldering:
 https://www.youtube.com/watch?v=bG7yW9FigJA
+
+MPPT:
+https://www.youtube.com/watch?v=9dNukdwBfoQ

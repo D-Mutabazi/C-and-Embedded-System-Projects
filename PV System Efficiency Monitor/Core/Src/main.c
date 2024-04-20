@@ -114,6 +114,7 @@ void system_state_update() ;
 void flash_led_d3() ;
 void flash_led_d2() ;
 void store_system_state_in_buffer(char analog_temp[], char dig_temp[], char system_state[], uint8_t len_of_sys_arr );
+void en_measurement_and_response() ;
 
 /* USER CODE END PFP */
 
@@ -421,6 +422,16 @@ void store_system_state_in_buffer(char analog_temp[], char dig_temp[], char syst
 		  }
 	  }
 }
+
+
+/**
+ * This funtion performs the measurement for UR3: Environement measure.
+ * It measures the ambient temperature, solar panel temperature and light intensity,
+ * the board is exposed to.
+ */
+void en_measurement_and_response(){
+
+}
 /* USER CODE END 0 */
 
 /**
@@ -468,16 +479,14 @@ int main(void)
 
   //Write to LCD
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET) ;
-  // Lcd_PortType ports[] = { D4_GPIO_Port, D5_GPIO_Port, D6_GPIO_Port, D7_GPIO_Port };
   Lcd_PortType ports[] = { GPIOB, GPIOA, GPIOA, GPIOC };
-  // Lcd_PinType pins[] = {D4_Pin, D5_Pin, D6_Pin, D7_Pin};
   Lcd_PinType pins[] = {GPIO_PIN_12, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_6};
   Lcd_HandleTypeDef lcd;
   // Lcd_create(ports, pins, RS_GPIO_Port, RS_Pin, EN_GPIO_Port, EN_Pin, LCD_4_BIT_MODE);
   lcd = Lcd_create(ports, pins, GPIOB, GPIO_PIN_14, GPIOB, GPIO_PIN_2, LCD_4_BIT_MODE);
   Lcd_cursor(&lcd, 0,3);
   Lcd_string(&lcd, "Too SAUCY!");
-  for ( int x = 1; x <= 200 ; x++ ){
+  for ( int x = 1; x <= 10 ; x++ ){
 	Lcd_cursor(&lcd, 1,7);
 	Lcd_int(&lcd, x);
 	HAL_Delay (1000);

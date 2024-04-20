@@ -27,23 +27,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  11 .ARM.attributes 00000030  00000000  00000000  00020084  2**0
                   CONTENTS, READONLY
- 12 .debug_info   0000fa42  00000000  00000000  000200b4  2**0
+ 12 .debug_info   0000fa55  00000000  00000000  000200b4  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 13 .debug_abbrev 0000211c  00000000  00000000  0002faf6  2**0
+ 13 .debug_abbrev 00002134  00000000  00000000  0002fb09  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_aranges 00000dd8  00000000  00000000  00031c18  2**3
+ 14 .debug_aranges 00000de0  00000000  00000000  00031c40  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_ranges 00000d10  00000000  00000000  000329f0  2**3
+ 15 .debug_ranges 00000d18  00000000  00000000  00032a20  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_macro  0001806e  00000000  00000000  00033700  2**0
+ 16 .debug_macro  0001806e  00000000  00000000  00033738  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   000103e7  00000000  00000000  0004b76e  2**0
+ 17 .debug_line   000103fc  00000000  00000000  0004b7a6  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    0009a84e  00000000  00000000  0005bb55  2**0
+ 18 .debug_str    0009a86a  00000000  00000000  0005bba2  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000050  00000000  00000000  000f63a3  2**0
+ 19 .comment      00000050  00000000  00000000  000f640c  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00003f48  00000000  00000000  000f63f4  2**2
+ 20 .debug_frame  00003f68  00000000  00000000  000f645c  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -2697,13 +2697,11 @@ int main(void)
  800174c:	f44f 4100 	mov.w	r1, #32768	; 0x8000
  8001750:	4866      	ldr	r0, [pc, #408]	; (80018ec <main+0x1f0>)
  8001752:	f001 fe33 	bl	80033bc <HAL_GPIO_WritePin>
-  // Lcd_PortType ports[] = { D4_GPIO_Port, D5_GPIO_Port, D6_GPIO_Port, D7_GPIO_Port };
   Lcd_PortType ports[] = { GPIOB, GPIOA, GPIOA, GPIOC };
  8001756:	4b66      	ldr	r3, [pc, #408]	; (80018f0 <main+0x1f4>)
  8001758:	f107 043c 	add.w	r4, r7, #60	; 0x3c
  800175c:	cb0f      	ldmia	r3, {r0, r1, r2, r3}
  800175e:	e884 000f 	stmia.w	r4, {r0, r1, r2, r3}
-  // Lcd_PinType pins[] = {D4_Pin, D5_Pin, D6_Pin, D7_Pin};
   Lcd_PinType pins[] = {GPIO_PIN_12, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_6};
  8001762:	4a64      	ldr	r2, [pc, #400]	; (80018f4 <main+0x1f8>)
  8001764:	f107 0334 	add.w	r3, r7, #52	; 0x34
@@ -2742,7 +2740,7 @@ int main(void)
  80017b6:	4950      	ldr	r1, [pc, #320]	; (80018f8 <main+0x1fc>)
  80017b8:	4618      	mov	r0, r3
  80017ba:	f7ff fb45 	bl	8000e48 <Lcd_string>
-  for ( int x = 1; x <= 200 ; x++ ){
+  for ( int x = 1; x <= 10 ; x++ ){
  80017be:	2301      	movs	r3, #1
  80017c0:	64fb      	str	r3, [r7, #76]	; 0x4c
  80017c2:	e013      	b.n	80017ec <main+0xf0>
@@ -2760,12 +2758,12 @@ int main(void)
 	HAL_Delay (1000);
  80017de:	f44f 707a 	mov.w	r0, #1000	; 0x3e8
  80017e2:	f000 fec9 	bl	8002578 <HAL_Delay>
-  for ( int x = 1; x <= 200 ; x++ ){
+  for ( int x = 1; x <= 10 ; x++ ){
  80017e6:	6cfb      	ldr	r3, [r7, #76]	; 0x4c
  80017e8:	3301      	adds	r3, #1
  80017ea:	64fb      	str	r3, [r7, #76]	; 0x4c
  80017ec:	6cfb      	ldr	r3, [r7, #76]	; 0x4c
- 80017ee:	2bc8      	cmp	r3, #200	; 0xc8
+ 80017ee:	2b0a      	cmp	r3, #10
  80017f0:	dde8      	ble.n	80017c4 <main+0xc8>
 
   /* Infinite loop */
