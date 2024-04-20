@@ -70,7 +70,7 @@ double g_vin = 0 ;
 uint16_t g_temp_in_deg = 0 ;
 char g_temperature[3]= {} ;
 
-//LMTO1 senso
+//LMTO1 sensor
 extern uint32_t pulse_count ;
 uint8_t Tsp_temp_ready = 0 ;
 uint32_t g_pulse_window_period =  0 ;
@@ -96,6 +96,12 @@ uint8_t g_pv_eff = 0 ; //PV panel eff. %
 
 uint16_t g_PV_vol1 = 0;
 uint16_t g_PV_vol2 = 0;
+
+char g_lcd_amb_val[9] = {} ;
+char g_lcd_sb_val[8] = {} ;
+char g_lcd_lux_val[10] = {} ;
+uint32_t lcd_scaled_lux = 0;
+
 
 
 // SYSTEM state machine variables
@@ -581,19 +587,21 @@ void en_measurements_and_responses(){
 		  g_transmit_system_state = 0;
 		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)system_state_transmit, 16);
 
-//		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET) ;
-
 		  //clear current LCD contents
 		  Lcd_clear(&lcd);
 		  //Write Results to LCD
 		  Lcd_cursor(&lcd, 0,0);
-		  Lcd_string(&lcd, "AMB:000C");
+		  snprintf(g_lcd_amb_val, sizeof(g_lcd_amb_val),"AMB:%03dC",g_temp_in_deg);
+		  Lcd_string(&lcd, g_lcd_amb_val);
 
 		  Lcd_cursor(&lcd, 0,9);
-		  Lcd_string(&lcd, "SP:000C");
+		  snprintf(g_lcd_sb_val, sizeof(g_lcd_sb_val),"SP:%03dC",g_lmt01_sens_temp);
+		  Lcd_string(&lcd, g_lcd_sb_val);
 
+		  //scale lux value: [0: 30000]?
 		  Lcd_cursor(&lcd, 1,0);
-		  Lcd_string(&lcd, "LUX:00000");
+		  snprintf(g_lcd_lux_val, sizeof(g_lcd_lux_val),"LUX:%05d",g_get_lxd_value);
+		  Lcd_string(&lcd,g_lcd_lux_val);
 	  }
 
 	}
@@ -628,9 +636,7 @@ uint16_t get_pv_panel_adc2_input(){
 
 }
 
-//Lcd_PortType ports[] = { GPIOB, GPIOA, GPIOA, GPIOC };
-//Lcd_PinType pins[] = {GPIO_PIN_12, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_6};
-//Lcd_HandleTypeDef lcd;
+
 /* USER CODE END 0 */
 
 /**
@@ -678,21 +684,12 @@ int main(void)
 
   //Write to LCD
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET) ;
-//  Lcd_PortType ports[] = { GPIOB, GPIOA, GPIOA, GPIOC };
-//  Lcd_PinType pins[] = {GPIO_PIN_12, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_6};
-//  Lcd_HandleTypeDef lcd;
-  // Lcd_create(ports, pins, RS_GPIO_Port, RS_Pin, EN_GPIO_Port, EN_Pin, LCD_4_BIT_MODE);
+
   lcd = Lcd_create(ports, pins, GPIOB, GPIO_PIN_14, GPIOB, GPIO_PIN_2, LCD_4_BIT_MODE);
   Lcd_cursor(&lcd, 0,3);
   Lcd_string(&lcd, "Too SAUCY!");
   Lcd_clear(&lcd);
-//  for ( int x = 1; x <= 10 ; x++ ){
-//	Lcd_cursor(&lcd, 1,7);
-//	Lcd_int(&lcd, x);
-//	HAL_Delay (1000);
-//  }
 
-  //lcd setup
 
   // write data
 
