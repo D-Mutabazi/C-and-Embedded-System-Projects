@@ -28,3 +28,5 @@ https://www.youtube.com/watch?v=bG7yW9FigJA
 
 MPPT:
 https://www.youtube.com/watch?v=9dNukdwBfoQ
+Sampling multiple adc channells
+https://www.youtube.com/watch?v=5l-b6lsubBE

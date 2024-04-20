@@ -83,6 +83,20 @@ uint16_t g_raw_lux_value = 0; ;
 uint16_t g_get_lxd_value= 0;
 char g_lxd_value[3] = {} ;
 
+//Solar Panel
+uint32_t g_v1_pv = 0; //PV voltage mV - ADC input 1
+uint32_t g_v2_pv = 0; //PV voltage mV - ADC input 2
+
+uint32_t g_i_pv = 0; //PV current mA
+uint32_t g_p_pv = 0; //PV power mW
+uint32_t g_v_mpp = 0; //PV voltage mpp
+uint32_t g_i_mpp = 0; //PV current mpp
+uint32_t g_p_mpp = 0; //PV power mpp
+uint8_t g_pv_eff = 0 ; //PV panel eff. %
+
+uint16_t g_PV_vol1 = 0;
+uint16_t g_PV_vol2 = 0;
+
 
 // SYSTEM state machine variables
 char g_system_config[17] = {} ;
@@ -103,6 +117,11 @@ uint8_t g_SP_config_command_rcvd = 0;
 
 char system_state_transmit[17] = {} ;
 uint8_t g_transmit_system_state = 1;
+
+//LCD variable
+Lcd_PortType ports[] = { GPIOB, GPIOA, GPIOA, GPIOC };
+Lcd_PinType pins[] = {GPIO_PIN_12, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_6};
+Lcd_HandleTypeDef lcd;
 
 /* USER CODE END PV */
 
@@ -127,6 +146,8 @@ void ADC_Select_CH14(void);
 void ADC_Select_CH9(void);
 void ADC_Select_CH15(void);
 uint16_t get_adc_value_conver_to_lux();
+uint16_t get_pv_panel_adc1_input();
+uint16_t get_pv_panel_adc2_input();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -506,7 +527,7 @@ uint16_t get_adc_value_conver_to_lux(){
 	g_raw_lux_value = HAL_ADC_GetValue(&hadc1) ;
 	HAL_ADC_Stop(&hadc1);
 
-	//scale adc value [0,999]
+	//scale adc value [0,99999] - For 30000 lux
 	g_raw_lux_value = g_raw_lux_value*(999.0/4095.0) ;
 
 	return g_raw_lux_value ;
@@ -560,12 +581,56 @@ void en_measurements_and_responses(){
 		  g_transmit_system_state = 0;
 		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)system_state_transmit, 16);
 
-		  //Write Results to LCD
+//		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET) ;
 
+		  //clear current LCD contents
+		  Lcd_clear(&lcd);
+		  //Write Results to LCD
+		  Lcd_cursor(&lcd, 0,0);
+		  Lcd_string(&lcd, "AMB:000C");
+
+		  Lcd_cursor(&lcd, 0,9);
+		  Lcd_string(&lcd, "SP:000C");
+
+		  Lcd_cursor(&lcd, 1,0);
+		  Lcd_string(&lcd, "LUX:00000");
 	  }
 
 	}
 }
+
+/**
+ * This function retrieves the ADC panel voltage,
+ * across adc input 1
+ */
+uint16_t get_pv_panel_adc1_input(){
+	ADC_Select_CH15() ;
+	HAL_ADC_Start(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) ;
+	g_v1_pv = HAL_ADC_GetValue(&hadc1) ;
+	HAL_ADC_Stop(&hadc1);
+
+	return g_v1_pv ;
+}
+
+/**
+ * This function returns the adc panel voltage, across adc input
+ * 2
+ */
+uint16_t get_pv_panel_adc2_input(){
+	ADC_Select_CH9() ;
+	HAL_ADC_Start(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) ;
+	g_v2_pv = HAL_ADC_GetValue(&hadc1) ;
+	HAL_ADC_Stop(&hadc1);
+
+	return g_v2_pv ;
+
+}
+
+//Lcd_PortType ports[] = { GPIOB, GPIOA, GPIOA, GPIOC };
+//Lcd_PinType pins[] = {GPIO_PIN_12, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_6};
+//Lcd_HandleTypeDef lcd;
 /* USER CODE END 0 */
 
 /**
@@ -613,18 +678,19 @@ int main(void)
 
   //Write to LCD
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET) ;
-  Lcd_PortType ports[] = { GPIOB, GPIOA, GPIOA, GPIOC };
-  Lcd_PinType pins[] = {GPIO_PIN_12, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_6};
-  Lcd_HandleTypeDef lcd;
+//  Lcd_PortType ports[] = { GPIOB, GPIOA, GPIOA, GPIOC };
+//  Lcd_PinType pins[] = {GPIO_PIN_12, GPIO_PIN_11, GPIO_PIN_12, GPIO_PIN_6};
+//  Lcd_HandleTypeDef lcd;
   // Lcd_create(ports, pins, RS_GPIO_Port, RS_Pin, EN_GPIO_Port, EN_Pin, LCD_4_BIT_MODE);
   lcd = Lcd_create(ports, pins, GPIOB, GPIO_PIN_14, GPIOB, GPIO_PIN_2, LCD_4_BIT_MODE);
   Lcd_cursor(&lcd, 0,3);
   Lcd_string(&lcd, "Too SAUCY!");
-  for ( int x = 1; x <= 10 ; x++ ){
-	Lcd_cursor(&lcd, 1,7);
-	Lcd_int(&lcd, x);
-	HAL_Delay (1000);
-  }
+  Lcd_clear(&lcd);
+//  for ( int x = 1; x <= 10 ; x++ ){
+//	Lcd_cursor(&lcd, 1,7);
+//	Lcd_int(&lcd, x);
+//	HAL_Delay (1000);
+//  }
 
   //lcd setup
 
@@ -648,6 +714,11 @@ int main(void)
 			  g_top_button_pressed = 0 ;
 			  g_EN_config_command_rcvd = 0;
 		  }
+
+		  //PV panel data points measure
+		  g_PV_vol1= get_pv_panel_adc1_input() ;
+		  g_PV_vol2 = get_pv_panel_adc2_input() ;
+
 		  //Flash D2 LED
 		  flash_led_d2() ;
 	  }
