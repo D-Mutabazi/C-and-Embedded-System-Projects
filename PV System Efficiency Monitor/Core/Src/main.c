@@ -121,7 +121,7 @@ void system_state_update() ;
 void flash_led_d3() ;
 void flash_led_d2() ;
 void store_system_state_in_buffer(char analog_temp[], char dig_temp[],char lux_value[],char system_state[], uint8_t len_of_sys_arr );
-void en_measurement_and_response() ;
+void en_measurements_and_responses();
 void ADC_Select_CH0(void) ;
 void ADC_Select_CH14(void);
 void ADC_Select_CH9(void);
@@ -516,9 +516,55 @@ uint16_t get_adc_value_conver_to_lux(){
  * This funtion performs the measurement for UR3: Environement measure.
  * It measures the ambient temperature, solar panel temperature and light intensity,
  * the board is exposed to.
+ * Measurements and responses, transmitted to UART and LCD
  */
-void en_measurement_and_response(){
+void en_measurements_and_responses(){
 
+	if(g_EN_measure == 1){
+
+	  // ignore bottom button press and SP command while measuring
+	  if(g_bottom_button_pressed ==1 || g_SP_config_command_rcvd ==1){
+		  g_bottom_button_pressed = 0 ;
+		  g_SP_config_command_rcvd = 0 ;
+	  }
+	  //ANALOGUE SENSOR CALIBRATION
+	  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
+	  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
+
+	  //PHOTODIOCE ouput
+	  g_get_lxd_value = get_adc_value_conver_to_lux();
+	  store_temp_in_string(g_get_lxd_value, g_lxd_value, LEN);
+
+	  // DIGITAL SENSOR CALIBRATION
+	  g_lmt01_sens_temp =  (uint16_t)g_TO1_temp ;
+	  store_temp_in_string(g_lmt01_sens_temp, dig_sens_temp, LEN) ;
+
+	  //re-prime system state update
+	  if(g_transmit_system_state ==0){
+		  g_transmit_system_state =1; //send the system state again
+
+	  }
+
+	  //Flash D3 LED -> put in function
+	  flash_led_d3();
+	}
+	else if(g_EN_measure == 2){
+	  //set LED D3
+	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
+
+	  //store system state to transmit
+	  store_system_state_in_buffer(g_temperature, dig_sens_temp,g_lxd_value,  system_state_transmit, 17) ;
+
+	  // Transmit system state via the UART
+	  if(g_transmit_system_state  == 1){
+		  g_transmit_system_state = 0;
+		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)system_state_transmit, 16);
+
+		  //Write Results to LCD
+
+	  }
+
+	}
 }
 /* USER CODE END 0 */
 
@@ -593,50 +639,7 @@ int main(void)
 	  system_state_update() ;
 
 	  //UR3: Evironment measure: measure Ta & measure Tb  (Put in Function)/Modularize
-	  if(g_EN_measure == 1){
-
-		  // ignore bottom button press and SP command while measuring
-		  if(g_bottom_button_pressed ==1 || g_SP_config_command_rcvd ==1){
-			  g_bottom_button_pressed = 0 ;
-			  g_SP_config_command_rcvd = 0 ;
-		  }
-		  //ANALOGUE SENSOR CALIBRATION
-		  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
-		  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
-
-		  //PHOTODIOCE ouput
-		  g_get_lxd_value = get_adc_value_conver_to_lux();
-		  store_temp_in_string(g_get_lxd_value, g_lxd_value, LEN);
-
-		  // DIGITAL SENSOR CALIBRATION
-		  g_lmt01_sens_temp =  (uint16_t)g_TO1_temp ;
-		  store_temp_in_string(g_lmt01_sens_temp, dig_sens_temp, LEN) ;
-
-		  //re-prime system state update
-		  if(g_transmit_system_state ==0){
-			  g_transmit_system_state =1; //send the system state again
-
-		  }
-
-		  //Flash D3 LED -> put in function
-		  flash_led_d3();
-
-	  }
-	  else if(g_EN_measure == 2){
-		  //set LED D3
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
-
-		  //store system state to transmit
-		  store_system_state_in_buffer(g_temperature, dig_sens_temp,g_lxd_value,  system_state_transmit, 17) ;
-
-		  // Transmit system state via the UART
-		  if(g_transmit_system_state  == 1){
-			  g_transmit_system_state = 0;
-			  HAL_UART_Transmit_IT(&huart2, (uint8_t*)system_state_transmit, 16);
-
-		  }
-
-	  }
+	  en_measurements_and_responses() ;
 
 	  //UR2: PV Module -(Put in Function)/Modularize
 	  if(g_SP_measure == 1){
