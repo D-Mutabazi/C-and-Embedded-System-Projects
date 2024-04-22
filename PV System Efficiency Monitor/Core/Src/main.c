@@ -84,23 +84,35 @@ uint16_t g_get_lxd_value= 0;
 char g_lxd_value[3] = {} ;
 
 //Solar Panel
-uint32_t g_v1_pv = 0; //PV voltage mV - ADC input 1
-uint32_t g_v2_pv = 0; //PV voltage mV - ADC input 2
+double g_v1_pv = 0; //PV voltage mV - ADC input 1
+double g_v2_pv = 0; //PV voltage mV - ADC input 2
 
-uint32_t g_i_pv = 0; //PV current mA
-uint32_t g_p_pv = 0; //PV power mW
-uint32_t g_v_mpp = 0; //PV voltage mpp
-uint32_t g_i_mpp = 0; //PV current mpp
-uint32_t g_p_mpp = 0; //PV power mpp
+double g_i_pv = 0; //PV current mA
+uint16_t g_i_sc_pv = 0; //PV current mA
+uint16_t g_prev_i_pv = 0; //PV current mA
+uint16_t g_limiting_current= 0 ; //to avoid over or underflow as a result of the fluctuating voltages v1, v2 becuase of the small
+
+uint16_t g_p_pv = 0; //PV power mW
+uint16_t g_prev_p_pv = 0; //PV power mW
+
+uint16_t g_v_mpp = 0; //PV voltage mpp
+uint16_t g_i_mpp = 0; //PV current mpp
+uint16_t g_p_mpp = 0; //PV power mpp
+
 uint8_t g_pv_eff = 0 ; //PV panel eff. %
 
+//voltages (mv) from ADC conversion
 uint16_t g_PV_vol1 = 0;
+uint16_t g_v_oc_pv = 0;
+uint16_t g_prev_v_pv = 0;
+
+
 uint16_t g_PV_vol2 = 0;
 
 char g_lcd_amb_val[9] = {} ;
 char g_lcd_sb_val[8] = {} ;
 char g_lcd_lux_val[10] = {} ;
-uint32_t lcd_scaled_lux = 0;
+uint16_t lcd_scaled_lux = 0;
 
 
 
@@ -610,13 +622,25 @@ void en_measurements_and_responses(){
 /**
  * This function retrieves the ADC panel voltage,
  * across adc input 1
+ * Gets the input voltage to the adc
+ * Scales the voltage to the appropriate PV voltage
  */
 uint16_t get_pv_panel_adc1_input(){
+	//READ ADC VALUE
 	ADC_Select_CH15() ;
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) ;
 	g_v1_pv = HAL_ADC_GetValue(&hadc1) ;
 	HAL_ADC_Stop(&hadc1);
+
+	//get voltage (mv) - from ADC formula
+	g_v1_pv = g_v1_pv*(3.3/4095.0) ;
+
+	//scale voltage up to PV panel voltage (V)
+	g_v1_pv = g_v1_pv*(99000.0/39000.0);
+
+	//multiply by 1000 to get voltage to mv
+	g_v1_pv = g_v1_pv*1000;
 
 	return g_v1_pv ;
 }
@@ -624,19 +648,34 @@ uint16_t get_pv_panel_adc1_input(){
 /**
  * This function returns the adc panel voltage, across adc input
  * 2
+ * Gets the input voltage to the adc
+ * Scales the voltage to the appropriate PV voltage
  */
 uint16_t get_pv_panel_adc2_input(){
+	//read adc value
 	ADC_Select_CH9() ;
 	HAL_ADC_Start(&hadc1);
 	HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) ;
 	g_v2_pv = HAL_ADC_GetValue(&hadc1) ;
 	HAL_ADC_Stop(&hadc1);
 
+	//get voltage (mv) -from adc formula
+	g_v2_pv = g_v2_pv*(3.3/4095.0) ;
+
+	//scale voltage up to PV panel voltage
+	g_v2_pv = g_v2_pv*(99000.0/39000.0);
+
+	//multiply by 1000 to get voltage to mv
+	g_v2_pv = g_v2_pv*1000;
+
 	return g_v2_pv ;
 
 }
 
-
+int current_samples[100] = {0} ;
+int sum = 0 ;
+uint16_t avg_current = 0;;
+uint8_t PV_CURRENT = 0;
 /* USER CODE END 0 */
 
 /**
@@ -713,8 +752,17 @@ int main(void)
 		  }
 
 		  //PV panel data points measure
-		  g_PV_vol1= get_pv_panel_adc1_input() ;
-		  g_PV_vol2 = get_pv_panel_adc2_input() ;
+		  g_PV_vol1 = get_pv_panel_adc2_input() ; //Voc = Vsp
+
+		  //*ADC input(2) Vb = V_var
+		  g_PV_vol2= get_pv_panel_adc1_input() ;
+
+		  //Voc measure
+		  if(g_PV_vol1 > g_prev_v_pv){
+			  g_prev_v_pv = g_PV_vol1 ;
+			  //capture maximum open circuit voltage
+			  g_v_oc_pv = g_PV_vol1 ;
+		  }
 
 		  //Flash D2 LED
 		  flash_led_d2() ;
