@@ -87,7 +87,7 @@ char g_lxd_value[3] = {} ;
 double g_v1_pv = 0; //PV voltage mV - ADC input 1
 double g_v2_pv = 0; //PV voltage mV - ADC input 2
 
-double g_i_pv = 0; //PV current mA
+uint16_t g_i_pv = 0; //PV current mA
 uint16_t g_i_sc_pv = 0; //PV current mA
 uint16_t g_prev_i_pv = 0; //PV current mA
 uint16_t g_limiting_current= 0 ; //to avoid over or underflow as a result of the fluctuating voltages v1, v2 becuase of the small
@@ -115,6 +115,17 @@ char g_lcd_lux_val[10] = {} ;
 uint16_t lcd_scaled_lux = 0;
 
 
+char g_panel_voltage[9] = {};
+char g_panel_mpp_voltage[5] = {};
+
+char g_panel_current[4] ={};
+char g_panel_mpp_current[4] ={};
+
+char g_panel_power[4] = {} ;
+char g_panel_mpp_power[4] = {} ;
+
+
+char g_panel_eff[5] = {} ;
 
 // SYSTEM state machine variables
 char g_system_config[17] = {} ;
@@ -123,18 +134,31 @@ uint8_t g_config_command_rcvd = 0;    // check for when config recvd
 
 // EN measure
 uint8_t g_EN_measure= 0;
+uint8_t g_EN_measure_LCD_display= 0;
+
 uint32_t g_time_passed = 0 ;
 uint8_t g_LED_D3_ON  =0 ;   // LED D3 state initially off
 uint8_t g_EN_config_command_rcvd = 0;
 
 // EN measure
 uint8_t g_SP_measure= 0;
+uint8_t g_SP_measure_LCD_diplay= 0;
+
 uint8_t g_LED_D2_ON  =0 ;   // LED D2 state initially off
 uint8_t g_SP_config_command_rcvd = 0;
 
 
 char system_state_transmit[17] = {} ;
+char system_state_SP_transmit[22] = {} ;
+
 uint8_t g_transmit_system_state = 1;
+uint8_t g_transmit_SP_system_state = 1;
+
+uint8_t g_lcd_mode = 0;
+uint8_t g_lcd_default_mode = 1;
+uint8_t display_result = 0 ;
+
+
 
 //LCD variable
 Lcd_PortType ports[] = { GPIOB, GPIOA, GPIOA, GPIOC };
@@ -166,6 +190,7 @@ void ADC_Select_CH15(void);
 uint16_t get_adc_value_conver_to_lux();
 uint16_t get_pv_panel_adc1_input();
 uint16_t get_pv_panel_adc2_input();
+void change_lcd_display_mode();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -247,6 +272,7 @@ void system_state_update(){
 	if( g_config_command_rcvd == 1){
 		g_config_command_rcvd = 0;
 
+
 		if( g_system_config[2]=='E' && g_system_config[3] == 'N'){
 			// EN measure comand
 			g_EN_config_command_rcvd =1 ;
@@ -280,6 +306,7 @@ void system_state_update(){
 	}
 	else if(g_top_button_pressed ==0  && g_EN_config_command_rcvd == 1 && g_SP_config_command_rcvd ==0  && (g_SP_measure == 0 || g_SP_measure ==2)){
 		g_EN_config_command_rcvd = 0;
+
 		if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='E' && g_system_config[3] == 'N' &&g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
 			if(g_EN_measure == 0){
 				g_EN_measure = 1;
@@ -301,9 +328,9 @@ void system_state_update(){
 	}
 
 
-
 	//SP Measure
 	if(g_bottom_button_pressed  == 1  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==0  && (g_EN_measure == 0 || g_EN_measure ==2)){
+//			Lcd_clear(&lcd); //to remove EN measure values
 			g_bottom_button_pressed = 0;
 
 			g_SP_measure++  ;
@@ -314,6 +341,7 @@ void system_state_update(){
 		}
 		else if(g_bottom_button_pressed ==0  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==1 && (g_EN_measure == 0 || g_EN_measure ==2)){
 			g_SP_config_command_rcvd = 0;
+
 			if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='S' && g_system_config[3] == 'P' &&g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
 				if(g_SP_measure == 0){
 					g_SP_measure = 1;
@@ -333,6 +361,9 @@ void system_state_update(){
 				g_SP_measure =  g_SP_measure ;
 			}
 		}
+
+
+	//LCD DISPLAY MODES
 }
 
 /**
@@ -561,10 +592,11 @@ void en_measurements_and_responses(){
 
 	if(g_EN_measure == 1){
 
-	  // ignore bottom button press and SP command while measuring
+	  // ignore bottom and left button press and SP command while measuring
 	  if(g_bottom_button_pressed ==1 || g_SP_config_command_rcvd ==1){
 		  g_bottom_button_pressed = 0 ;
 		  g_SP_config_command_rcvd = 0 ;
+		  g_left_button_pressed = 0;
 	  }
 	  //ANALOGUE SENSOR CALIBRATION
 	  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
@@ -588,6 +620,14 @@ void en_measurements_and_responses(){
 	  flash_led_d3();
 	}
 	else if(g_EN_measure == 2){
+		//enter state only once
+		g_EN_measure = 0;
+
+		//clear lcd
+		 Lcd_clear(&lcd);
+		//update LCD mode - to EN mode
+		g_EN_measure_LCD_display =  1 ;
+		g_SP_measure_LCD_diplay = 0 ; //dont display SP measurements
 	  //set LED D3
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
 
@@ -596,24 +636,10 @@ void en_measurements_and_responses(){
 
 	  // Transmit system state via the UART
 	  if(g_transmit_system_state  == 1){
+
 		  g_transmit_system_state = 0;
 		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)system_state_transmit, 16);
 
-		  //clear current LCD contents
-		  Lcd_clear(&lcd);
-		  //Write Results to LCD
-		  Lcd_cursor(&lcd, 0,0);
-		  snprintf(g_lcd_amb_val, sizeof(g_lcd_amb_val),"AMB:%03dC",g_temp_in_deg);
-		  Lcd_string(&lcd, g_lcd_amb_val);
-
-		  Lcd_cursor(&lcd, 0,9);
-		  snprintf(g_lcd_sb_val, sizeof(g_lcd_sb_val),"SP:%03dC",g_lmt01_sens_temp);
-		  Lcd_string(&lcd, g_lcd_sb_val);
-
-		  //scale lux value: [0: 30000]?
-		  Lcd_cursor(&lcd, 1,0);
-		  snprintf(g_lcd_lux_val, sizeof(g_lcd_lux_val),"LUX:%05d",g_get_lxd_value);
-		  Lcd_string(&lcd,g_lcd_lux_val);
 	  }
 
 	}
@@ -672,10 +698,132 @@ uint16_t get_pv_panel_adc2_input(){
 
 }
 
-int current_samples[100] = {0} ;
-int sum = 0 ;
-uint16_t avg_current = 0;;
-uint8_t PV_CURRENT = 0;
+/**
+ * This function displays the values of the different measurement,
+ * by altering the display mode on the LCD.
+ * Changing the view is independent of the system ,and does not change any
+ * state of the system
+ */
+
+void change_lcd_display_mode(){
+	//display default display mode
+	if(g_lcd_default_mode == 1){
+
+		g_lcd_default_mode = 0;
+
+		Lcd_clear(&lcd);
+
+		Lcd_cursor(&lcd, 0, 0) ;
+		snprintf(g_panel_voltage, sizeof(g_panel_voltage),"V:%04dmV",g_v_mpp);
+		Lcd_string(&lcd, g_panel_voltage);
+
+		Lcd_cursor(&lcd, 0, 9) ;
+		snprintf(g_panel_current, sizeof(g_panel_voltage),"I:%03dmA",g_i_mpp);
+		Lcd_string(&lcd, g_panel_current);
+
+		Lcd_cursor(&lcd, 1, 0) ;
+		snprintf(g_panel_power, sizeof(g_panel_voltage),"P: %03dmW",g_p_mpp);
+		Lcd_string(&lcd, g_panel_power);
+
+		Lcd_cursor(&lcd, 1, 9) ;
+		snprintf(g_panel_eff, sizeof(g_panel_voltage),"E:%03d%%",g_pv_eff);
+		Lcd_string(&lcd, g_panel_eff);
+	}
+
+
+	//update state based on button press - DONT UPDATE ANYS STATES WHILE MEASURING
+	if(g_left_button_pressed == 1 && g_EN_measure_LCD_display ==0 && g_SP_measure_LCD_diplay ==0 && g_SP_measure !=1 && g_EN_measure !=1){
+
+		//display/update lcd results
+		display_result= 1 ;
+
+		g_left_button_pressed = 0;
+		g_lcd_mode ++;
+
+		if(g_lcd_mode>2){
+			g_lcd_mode = 1 ;
+		}
+	}
+
+	//update lcd state based on  EN stop command
+	else if(g_left_button_pressed == 0 && g_EN_measure_LCD_display == 1 && g_SP_measure_LCD_diplay ==0  && g_SP_measure !=1 && g_EN_measure !=1 ){
+		g_EN_measure_LCD_display = 0 ;
+
+		g_lcd_mode = 1; //display EN measurements
+
+		//display/update lcd results
+		display_result= 1 ;
+	}
+
+	//update LCD based on SP command
+	else if(g_left_button_pressed ==0 && g_EN_measure_LCD_display== 0 && g_SP_measure_LCD_diplay== 1  && g_SP_measure !=1 && g_EN_measure !=1){
+		g_SP_measure_LCD_diplay =0;
+
+		g_lcd_mode = 2; //display SP measurements
+
+		//display/update lcd results
+		display_result= 1 ;
+	}
+
+	//otherwise dont update display maode
+	else{
+		g_lcd_mode = g_lcd_mode ;
+		g_left_button_pressed = 0; //dont update left button press
+	}
+
+
+	if(display_result == 1){
+		display_result = 0;
+
+
+		if(g_lcd_mode == 1){//display mode 1: EN measurement
+			display_result = 0; //display contents once only
+			//clear current LCD contents
+			Lcd_clear(&lcd);
+			//Write Results to LCD
+			Lcd_cursor(&lcd, 0,0);
+			snprintf(g_lcd_amb_val, sizeof(g_lcd_amb_val),"AMB:%03dC",g_temp_in_deg);
+			Lcd_string(&lcd, g_lcd_amb_val);
+
+			Lcd_cursor(&lcd, 0,9);
+			snprintf(g_lcd_sb_val, sizeof(g_lcd_sb_val),"SP:%03dC",g_lmt01_sens_temp);
+			Lcd_string(&lcd, g_lcd_sb_val);
+
+			//scale lux value: [0: 30000]?
+			Lcd_cursor(&lcd, 1,0);
+			snprintf(g_lcd_lux_val, sizeof(g_lcd_lux_val),"LUX:%05d",g_get_lxd_value);
+			Lcd_string(&lcd,g_lcd_lux_val);
+
+
+		}
+		else if(g_lcd_mode == 2 ){//disply mode 2: SP measurements
+
+			display_result = 0 ; //display content only once
+
+			Lcd_clear(&lcd);
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			snprintf(g_panel_voltage, sizeof(g_panel_voltage),"V:%04dmV",g_v_mpp);
+			Lcd_string(&lcd, g_panel_voltage);
+
+			Lcd_cursor(&lcd, 0, 9) ;
+			snprintf(g_panel_current, sizeof(g_panel_voltage),"I:%03dmA",g_i_mpp);
+			Lcd_string(&lcd, g_panel_current);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			snprintf(g_panel_power, sizeof(g_panel_voltage),"P: %03dmW",g_p_mpp);
+			Lcd_string(&lcd, g_panel_power);
+
+			Lcd_cursor(&lcd, 1, 9) ;
+			snprintf(g_panel_eff, sizeof(g_panel_voltage),"E:%03d%%",g_pv_eff);
+			Lcd_string(&lcd, g_panel_eff);
+		}
+
+	}
+
+
+
+}
 /* USER CODE END 0 */
 
 /**
@@ -725,12 +873,7 @@ int main(void)
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET) ;
 
   lcd = Lcd_create(ports, pins, GPIOB, GPIO_PIN_14, GPIOB, GPIO_PIN_2, LCD_4_BIT_MODE);
-  Lcd_cursor(&lcd, 0,3);
-  Lcd_string(&lcd, "Too SAUCY!");
-  Lcd_clear(&lcd);
 
-
-  // write data
 
   /* USER CODE END 2 */
 
@@ -745,36 +888,80 @@ int main(void)
 
 	  //UR2: PV Module -(Put in Function)/Modularize
 	  if(g_SP_measure == 1){
-		  // ignore top button press and EN command while measuring
-		  if(g_top_button_pressed ==1 || g_EN_config_command_rcvd ==1){
-			  g_top_button_pressed = 0 ;
-			  g_EN_config_command_rcvd = 0;
-		  }
 
-		  //PV panel data points measure
-		  g_PV_vol1 = get_pv_panel_adc2_input() ; //Voc = Vsp
+		// ignore top button and left button press and EN command while measuring
+		if(g_top_button_pressed ==1 || g_EN_config_command_rcvd ==1){
+		  g_top_button_pressed = 0 ;
+		  g_EN_config_command_rcvd = 0;
+		  g_left_button_pressed = 0;
+		}
 
-		  //*ADC input(2) Vb = V_var
-		  g_PV_vol2= get_pv_panel_adc1_input() ;
+		//reprime state transmission
+		if(g_transmit_SP_system_state == 0){
+			g_transmit_SP_system_state = 1;
+		}
+		//PV panel data points measure
+		g_PV_vol1 = get_pv_panel_adc2_input() ; //Voc = Vsp
+		//*ADC input(2) Vb = V_var
+		g_PV_vol2= get_pv_panel_adc1_input() ;
 
-		  //Voc measure
-		  if(g_PV_vol1 > g_prev_v_pv){
-			  g_prev_v_pv = g_PV_vol1 ;
-			  //capture maximum open circuit voltage
-			  g_v_oc_pv = g_PV_vol1 ;
-		  }
+		//GET VALUES
+		//Voc measure
+		if(g_PV_vol1 > g_prev_v_pv){
+		  g_prev_v_pv = g_PV_vol1 ;
+		  //capture maximum open circuit voltage
+		  g_v_oc_pv = g_PV_vol1 ;
+		}
 
-		  //Flash D2 LED
-		  flash_led_d2() ;
+
+		//LCD write - real-time measured Vpv (mV), Ipv (mA), Ppv (mW), Peff = 0 while measuring
+		Lcd_cursor(&lcd, 0, 0) ;
+		snprintf(g_panel_voltage, sizeof(g_panel_voltage),"V:%04dmV",g_PV_vol1);
+		Lcd_string(&lcd, g_panel_voltage);
+
+		Lcd_cursor(&lcd, 0, 9) ;
+		snprintf(g_panel_current, sizeof(g_panel_voltage),"I:%03dmA",g_i_pv);
+		Lcd_string(&lcd, g_panel_current);
+
+		Lcd_cursor(&lcd, 1, 0) ;
+		snprintf(g_panel_power, sizeof(g_panel_voltage),"P: %03dmW",g_p_pv);
+		Lcd_string(&lcd, g_panel_power);
+
+		Lcd_cursor(&lcd, 1, 9) ;
+		snprintf(g_panel_eff, sizeof(g_panel_voltage),"E:%03d%%",g_pv_eff);
+		Lcd_string(&lcd, g_panel_eff);
+
+		//Flash D2 LED
+		flash_led_d2() ;
 	  }
 
 	  else if(g_SP_measure == 2){
+		  //enter this state once
+		  g_SP_measure = 0;
+
+		  //clear lcd
+		  Lcd_clear(&lcd);
+		  //update LCD mode to SP measurements
+
+		  g_SP_measure_LCD_diplay =  1;
+		  g_EN_measure_LCD_display = 0; //dont diplay EN measurements
+
 		  //set LED D2
 		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET) ;
+		  snprintf(system_state_SP_transmit,sizeof(system_state_SP_transmit), "&_%04d_%03d_%03d_%03d_*\n",g_v_mpp,g_i_mpp,g_p_mpp,g_pv_eff);
+		  //transmit system SP response
+		  if(g_transmit_SP_system_state == 1){
 
+			  g_transmit_SP_system_state = 0 ;
+			  //transmit over UART
+			  HAL_UART_Transmit_IT(&huart2,(uint8_t*)system_state_SP_transmit, 21) ;
+
+
+		  }
 	  }
 
-
+	  //update LCD - code runs seqeuntionally and lcd updates based on variable states above
+	  change_lcd_display_mode();
 
 
     /* USER CODE END WHILE */
