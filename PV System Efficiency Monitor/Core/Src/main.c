@@ -157,7 +157,7 @@ uint8_t g_transmit_SP_system_state = 1;
 uint8_t g_lcd_mode = 0;
 uint8_t g_lcd_default_mode = 1;
 uint8_t display_result = 0 ;
-
+uint8_t clear_lcd_display = 1 ;
 
 
 //LCD variable
@@ -330,7 +330,8 @@ void system_state_update(){
 
 	//SP Measure
 	if(g_bottom_button_pressed  == 1  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==0  && (g_EN_measure == 0 || g_EN_measure ==2)){
-//			Lcd_clear(&lcd); //to remove EN measure values
+			//clear lcd display after EN measurement
+			Lcd_clear(&lcd); //to remove EN measure values
 			g_bottom_button_pressed = 0;
 
 			g_SP_measure++  ;
@@ -340,6 +341,10 @@ void system_state_update(){
 			}
 		}
 		else if(g_bottom_button_pressed ==0  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==1 && (g_EN_measure == 0 || g_EN_measure ==2)){
+
+			//clear lcd display after EN measurement
+			Lcd_clear(&lcd); //to remove EN measure values
+
 			g_SP_config_command_rcvd = 0;
 
 			if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='S' && g_system_config[3] == 'P' &&g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
@@ -593,7 +598,7 @@ void en_measurements_and_responses(){
 	if(g_EN_measure == 1){
 
 	  // ignore bottom and left button press and SP command while measuring
-	  if(g_bottom_button_pressed ==1 || g_SP_config_command_rcvd ==1){
+	  if(g_bottom_button_pressed ==1 || g_SP_config_command_rcvd ==1 ||  g_left_button_pressed ==1){
 		  g_bottom_button_pressed = 0 ;
 		  g_SP_config_command_rcvd = 0 ;
 		  g_left_button_pressed = 0;
@@ -763,12 +768,14 @@ void change_lcd_display_mode(){
 
 		//display/update lcd results
 		display_result= 1 ;
+
+
 	}
 
 	//otherwise dont update display maode
 	else{
 		g_lcd_mode = g_lcd_mode ;
-		g_left_button_pressed = 0; //dont update left button press
+//		g_left_button_pressed = 0; //dont update left button press  (this is causing left button press not to be registered)
 	}
 
 
@@ -874,7 +881,6 @@ int main(void)
 
   lcd = Lcd_create(ports, pins, GPIOB, GPIO_PIN_14, GPIOB, GPIO_PIN_2, LCD_4_BIT_MODE);
 
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -890,7 +896,7 @@ int main(void)
 	  if(g_SP_measure == 1){
 
 		// ignore top button and left button press and EN command while measuring
-		if(g_top_button_pressed ==1 || g_EN_config_command_rcvd ==1){
+		if(g_top_button_pressed ==1 || g_EN_config_command_rcvd ==1 || g_left_button_pressed ==1){
 		  g_top_button_pressed = 0 ;
 		  g_EN_config_command_rcvd = 0;
 		  g_left_button_pressed = 0;
@@ -913,7 +919,10 @@ int main(void)
 		  g_v_oc_pv = g_PV_vol1 ;
 		}
 
-
+		if(clear_lcd_display == 1){
+			clear_lcd_display = 0;
+			Lcd_clear(&lcd);
+		}
 		//LCD write - real-time measured Vpv (mV), Ipv (mA), Ppv (mW), Peff = 0 while measuring
 		Lcd_cursor(&lcd, 0, 0) ;
 		snprintf(g_panel_voltage, sizeof(g_panel_voltage),"V:%04dmV",g_PV_vol1);
