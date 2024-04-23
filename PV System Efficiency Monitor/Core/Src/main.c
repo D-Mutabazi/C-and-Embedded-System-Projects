@@ -81,7 +81,7 @@ uint16_t g_temp_in_deg_dig_sens = 0;
 //SFH235 Photodiode
 uint16_t g_raw_lux_value = 0; ;
 uint16_t g_get_lxd_value= 0;
-char g_lxd_value[3] = {} ;
+char g_lxd_value[6] = {} ;
 
 //Solar Panel
 double g_v1_pv = 0; //PV voltage mV - ADC input 1
@@ -148,7 +148,7 @@ uint8_t g_LED_D2_ON  =0 ;   // LED D2 state initially off
 uint8_t g_SP_config_command_rcvd = 0;
 
 
-char system_state_transmit[17] = {} ;
+char system_state_transmit[19] = {} ;
 char system_state_SP_transmit[22] = {} ;
 
 uint8_t g_transmit_system_state = 1;
@@ -366,9 +366,6 @@ void system_state_update(){
 				g_SP_measure =  g_SP_measure ;
 			}
 		}
-
-
-	//LCD DISPLAY MODES
 }
 
 /**
@@ -495,14 +492,22 @@ void store_system_state_in_buffer(char analog_temp[], char dig_temp[],char lux_v
 
 			  break;
 		  case 13:
-			  system_state_transmit[13] = '_' ;
+			  system_state_transmit[13] = lux_value[3] ;
 
 			  break;
 		  case 14:
-			  system_state_transmit[14] = '*' ;
+			  system_state_transmit[14] = lux_value[4] ;
 
 			  break;
 		  case 15:
+			  system_state_transmit[13] = '_' ;
+
+			  break;
+		  case 16:
+			  system_state_transmit[14] = '*' ;
+
+			  break;
+		  case 17:
 			  system_state_transmit[15] = '\n' ;
 
 			  break;
@@ -582,7 +587,7 @@ uint16_t get_adc_value_conver_to_lux(){
 	HAL_ADC_Stop(&hadc1);
 
 	//scale adc value [0,99999] - For 30000 lux
-	g_raw_lux_value = g_raw_lux_value*(999.0/4095.0) ;
+	g_raw_lux_value = g_raw_lux_value*(99999.0/4095.0) ;
 
 	return g_raw_lux_value ;
 
@@ -609,7 +614,8 @@ void en_measurements_and_responses(){
 
 	  //PHOTODIOCE ouput
 	  g_get_lxd_value = get_adc_value_conver_to_lux();
-	  store_temp_in_string(g_get_lxd_value, g_lxd_value, LEN);
+	  snprintf(g_lxd_value, sizeof(g_lxd_value), "%05d",g_get_lxd_value);
+//	  store_temp_in_string(g_get_lxd_value, g_lxd_value, 5);
 
 	  // DIGITAL SENSOR CALIBRATION
 	  g_lmt01_sens_temp =  (uint16_t)g_TO1_temp ;
@@ -636,14 +642,15 @@ void en_measurements_and_responses(){
 	  //set LED D3
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
 
+	  snprintf(system_state_transmit,sizeof(system_state_transmit),"*_%03d_%03d_%05d_*\n",g_temp_in_deg,g_lmt01_sens_temp, g_get_lxd_value );
 	  //store system state to transmit
-	  store_system_state_in_buffer(g_temperature, dig_sens_temp,g_lxd_value,  system_state_transmit, 17) ;
+//	  store_system_state_in_buffer(g_temperature, dig_sens_temp,g_lxd_value,  system_state_transmit, 19) ;
 
 	  // Transmit system state via the UART
 	  if(g_transmit_system_state  == 1){
 
 		  g_transmit_system_state = 0;
-		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)system_state_transmit, 16);
+		  HAL_UART_Transmit_IT(&huart2, (uint8_t*)system_state_transmit, 18);
 
 	  }
 
@@ -824,8 +831,6 @@ void change_lcd_display_mode(){
 		}
 
 	}
-
-
 
 }
 /* USER CODE END 0 */
