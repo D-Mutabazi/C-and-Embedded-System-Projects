@@ -768,8 +768,6 @@ void change_lcd_display_mode(){
 
 		//display/update lcd results
 		display_result= 1 ;
-
-
 	}
 
 	//otherwise dont update display maode
@@ -777,7 +775,6 @@ void change_lcd_display_mode(){
 		g_lcd_mode = g_lcd_mode ;
 //		g_left_button_pressed = 0; //dont update left button press  (this is causing left button press not to be registered)
 	}
-
 
 	if(display_result == 1){
 		display_result = 0;
@@ -880,7 +877,6 @@ int main(void)
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET) ;
 
   lcd = Lcd_create(ports, pins, GPIOB, GPIO_PIN_14, GPIOB, GPIO_PIN_2, LCD_4_BIT_MODE);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -912,12 +908,34 @@ int main(void)
 		g_PV_vol2= get_pv_panel_adc1_input() ;
 
 		//GET VALUES
-		//Voc measure
+		//Voc measure - Voc, vpv
 		if(g_PV_vol1 > g_prev_v_pv){
 		  g_prev_v_pv = g_PV_vol1 ;
 		  //capture maximum open circuit voltage
 		  g_v_oc_pv = g_PV_vol1 ;
 		}
+
+		//curent measure - Isc, Ipv
+		if(g_PV_vol1 - g_PV_vol2 >0){
+			g_i_pv = g_PV_vol1 - g_PV_vol2 ;
+		}
+		else{
+			g_i_pv = g_i_pv ; //dont update current
+		}
+
+		//power measure - multiply by 1000, to get result in mW
+		g_p_pv = ( (g_PV_vol1 * g_i_pv)/1000000.0) *1000;
+
+
+		/*mpp values measure using power -Pmpp, Vmpp, Impp*/
+		//check is power increasing
+		if(g_p_pv > g_prev_p_pv ){
+			g_p_mpp = g_p_pv ;
+			g_v_mpp = g_PV_vol1 ;
+			g_i_mpp = g_i_pv ;
+			g_prev_p_pv = g_p_pv ;
+		}
+
 
 		if(clear_lcd_display == 1){
 			clear_lcd_display = 0;
@@ -964,7 +982,6 @@ int main(void)
 			  g_transmit_SP_system_state = 0 ;
 			  //transmit over UART
 			  HAL_UART_Transmit_IT(&huart2,(uint8_t*)system_state_SP_transmit, 21) ;
-
 
 		  }
 	  }
