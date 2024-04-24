@@ -158,7 +158,10 @@ void lcd_write_data(Lcd_HandleTypeDef * lcd, uint8_t data)
 
 /**
  * Set len bits on the bus and toggle the enable line
+ * Non-blocking delay added
  */
+
+
 void lcd_write(Lcd_HandleTypeDef * lcd, uint8_t data, uint8_t len)
 {
 	for(uint8_t i = 0; i < len; i++)

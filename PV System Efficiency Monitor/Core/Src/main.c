@@ -24,7 +24,7 @@
 #include "string.h"
 #include <stdio.h>
 #include "lcd.h"
-
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -79,7 +79,7 @@ double g_TO1_temp = 0;
 uint16_t g_temp_in_deg_dig_sens = 0;
 
 //SFH235 Photodiode
-uint16_t g_raw_lux_value = 0; ;
+double g_raw_lux_value = 0; ;
 uint16_t g_get_lxd_value= 0;
 char g_lxd_value[6] = {} ;
 
@@ -579,6 +579,8 @@ void ADC_Select_CH15(void){
  * Function starts ADC CH14, connected to ouput of light diode
  * get the ADC value of diode
  */
+double ip_diode = 0;
+uint16_t lux_value = 0;
 uint16_t get_adc_value_conver_to_lux(){
 	ADC_Select_CH14() ;
 	HAL_ADC_Start(&hadc1);
@@ -587,10 +589,15 @@ uint16_t get_adc_value_conver_to_lux(){
 	HAL_ADC_Stop(&hadc1);
 
 	//scale adc value [0,99999] - For 30000 lux
-	g_raw_lux_value = g_raw_lux_value*(99999.0/4095.0) ;
+//	g_raw_lux_value = g_raw_lux_value*(29999.0/4095.0) ;
 
-	return g_raw_lux_value ;
+	//make these into your own values
+	g_raw_lux_value = g_raw_lux_value*(3.3/4095.0) ;
+	ip_diode = g_raw_lux_value/1200.0 ;
+	lux_value = pow((ip_diode/(0.085*pow(10,-6))),1/1.01) ;
 
+//	return g_raw_lux_value ;
+	return lux_value ;
 }
 /**
  * This funtion performs the measurement for UR3: Environement measure.
@@ -642,9 +649,8 @@ void en_measurements_and_responses(){
 	  //set LED D3
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
 
-	  snprintf(system_state_transmit,sizeof(system_state_transmit),"*_%03d_%03d_%05d_*\n",g_temp_in_deg,g_lmt01_sens_temp, g_get_lxd_value );
 	  //store system state to transmit
-//	  store_system_state_in_buffer(g_temperature, dig_sens_temp,g_lxd_value,  system_state_transmit, 19) ;
+	  snprintf(system_state_transmit,sizeof(system_state_transmit),"*_%03d_%03d_%05d_*\n",g_temp_in_deg,g_lmt01_sens_temp, g_get_lxd_value );
 
 	  // Transmit system state via the UART
 	  if(g_transmit_system_state  == 1){
@@ -882,6 +888,7 @@ int main(void)
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_15, GPIO_PIN_RESET) ;
 
   lcd = Lcd_create(ports, pins, GPIOB, GPIO_PIN_14, GPIOB, GPIO_PIN_2, LCD_4_BIT_MODE);
+  Lcd_clear(&lcd);
   /* USER CODE END 2 */
 
   /* Infinite loop */
