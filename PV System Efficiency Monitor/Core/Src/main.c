@@ -124,6 +124,11 @@ char g_panel_mpp_current[4] ={};
 char g_panel_power[4] = {} ;
 char g_panel_mpp_power[4] = {} ;
 
+//reduction in LCD real time value update frequecy, to improve response time.
+char g_panel_voltage_and_current[17] = {};
+char g_panel_power_and_efficiency[17] = {};
+uint8_t g_read_real_time_values = 1 ;
+uint32_t g_previous_time_of_lcd = 0;
 
 char g_panel_eff[5] = {} ;
 
@@ -650,7 +655,7 @@ void en_measurements_and_responses(){
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
 
 	  //store system state to transmit
-	  snprintf(system_state_transmit,sizeof(system_state_transmit),"*_%03d_%03d_%05d_*\n",g_temp_in_deg,g_lmt01_sens_temp, g_get_lxd_value );
+	  snprintf(system_state_transmit,sizeof(system_state_transmit),"&_%03d_%03d_%05d_*\n",g_temp_in_deg,g_lmt01_sens_temp, g_get_lxd_value );
 
 	  // Transmit system state via the UART
 	  if(g_transmit_system_state  == 1){
@@ -954,21 +959,23 @@ int main(void)
 			Lcd_clear(&lcd);
 		}
 		//LCD write - real-time measured Vpv (mV), Ipv (mA), Ppv (mW), Peff = 0 while measuring
-		Lcd_cursor(&lcd, 0, 0) ;
-		snprintf(g_panel_voltage, sizeof(g_panel_voltage),"V:%04dmV",g_PV_vol1);
-		Lcd_string(&lcd, g_panel_voltage);
+		//few commands - (have 2 write commands, and reduce rate of sampling/real time value display)
 
-		Lcd_cursor(&lcd, 0, 9) ;
-		snprintf(g_panel_current, sizeof(g_panel_voltage),"I:%03dmA",g_i_pv);
-		Lcd_string(&lcd, g_panel_current);
+		//update valus only every 30ms
+		if(HAL_GetTick() - g_previous_time_of_lcd >=30){
+			//write to lcd - //row 1
+			Lcd_cursor(&lcd, 0, 0) ;
+			snprintf(g_panel_voltage_and_current, sizeof(g_panel_voltage_and_current),"V:%04dmV I:%03dmA",g_PV_vol1,g_i_pv);
+			Lcd_string(&lcd, g_panel_voltage_and_current);
 
-		Lcd_cursor(&lcd, 1, 0) ;
-		snprintf(g_panel_power, sizeof(g_panel_voltage),"P: %03dmW",g_p_pv);
-		Lcd_string(&lcd, g_panel_power);
+			//2nd row
+			Lcd_cursor(&lcd, 1, 0) ;
+			snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_pv, g_pv_eff);
+			Lcd_string(&lcd, g_panel_power_and_efficiency);
 
-		Lcd_cursor(&lcd, 1, 9) ;
-		snprintf(g_panel_eff, sizeof(g_panel_voltage),"E:%03d%%",g_pv_eff);
-		Lcd_string(&lcd, g_panel_eff);
+			g_previous_time_of_lcd = HAL_GetTick() ;
+		}
+
 
 		//Flash D2 LED
 		flash_led_d2() ;
@@ -979,7 +986,7 @@ int main(void)
 		  g_SP_measure = 0;
 
 		  //clear lcd
-		  Lcd_clear(&lcd);
+//		  Lcd_clear(&lcd);
 		  //update LCD mode to SP measurements
 
 		  g_SP_measure_LCD_diplay =  1;

@@ -1,0 +1,5 @@
+LATEX:
+- 
+- SECTIONS
+- subsections
+- new paragraph: '\\' or go to new line

@@ -140,6 +140,7 @@ void lcd_write_command(Lcd_HandleTypeDef * lcd, uint8_t command)
 /**
  * Write a byte to the data register
  */
+
 void lcd_write_data(Lcd_HandleTypeDef * lcd, uint8_t data)
 {
 	HAL_GPIO_WritePin(lcd->rs_port, lcd->rs_pin, LCD_DATA_REG);			// Write to data register
@@ -161,7 +162,8 @@ void lcd_write_data(Lcd_HandleTypeDef * lcd, uint8_t data)
  * Non-blocking delay added
  */
 
-
+uint8_t set_enable = 0;
+uint32_t previous_time = 0;
 void lcd_write(Lcd_HandleTypeDef * lcd, uint8_t data, uint8_t len)
 {
 	for(uint8_t i = 0; i < len; i++)
@@ -172,4 +174,16 @@ void lcd_write(Lcd_HandleTypeDef * lcd, uint8_t data, uint8_t len)
 	HAL_GPIO_WritePin(lcd->en_port, lcd->en_pin, 1);
 	DELAY(1);
 	HAL_GPIO_WritePin(lcd->en_port, lcd->en_pin, 0); 		// Data receive on falling edge
+
+//    if(HAL_GetTick() - previous_time >= 1 && set_enable ==1 ){
+//        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET); // E = 1
+//        set_enable = 0;
+//        previous_time = HAL_GetTick() ;
+//    }
+//    else if(HAL_GetTick() - previous_time >=2 && set_enable ==0){
+//        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET); // E = 0
+//        set_enable = 1;
+//        previous_time = HAL_GetTick() ;
+//    }
+
 }

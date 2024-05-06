@@ -6,5 +6,5 @@
 ../Core/Src/lcd.c:106:6:Lcd_clear	16	static
 ../Core/Src/lcd.c:110:6:Lcd_define_char	32	static
 ../Core/Src/lcd.c:124:6:lcd_write_command	16	static
-../Core/Src/lcd.c:143:6:lcd_write_data	16	static
-../Core/Src/lcd.c:165:6:lcd_write	24	static
+../Core/Src/lcd.c:144:6:lcd_write_data	16	static
+../Core/Src/lcd.c:167:6:lcd_write	24	static
