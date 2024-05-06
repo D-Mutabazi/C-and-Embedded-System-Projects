@@ -185,7 +185,6 @@ void set_cursor_position(uint8_t row, uint8_t col){
  * This function writes data to the lcd
  * input string of length<16, otherwise lcd overflows, but 17th letter and beyond wont be seen
  */
-
 void write_data(char *string){
 
 	//There can be a maximum of 16 characters on any row on the lcd
