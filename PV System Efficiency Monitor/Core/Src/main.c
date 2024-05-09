@@ -734,6 +734,9 @@ void change_lcd_display_mode(){
 
 		g_lcd_default_mode = 0;
 
+		//update the correspoding lcd mode
+		g_lcd_mode =1 ;
+
 		Lcd_clear(&lcd);
 
 		Lcd_cursor(&lcd, 0, 0) ;
@@ -764,7 +767,7 @@ void change_lcd_display_mode(){
 		g_lcd_mode ++;
 
 		//cycles between the mode
-		if(g_lcd_mode>2){
+		if(g_lcd_mode>3){
 			g_lcd_mode = 1 ;
 		}
 	}
@@ -773,7 +776,7 @@ void change_lcd_display_mode(){
 	else if(g_left_button_pressed == 0 && g_EN_measure_LCD_display == 1 && g_SP_measure_LCD_diplay ==0  && g_SP_measure !=1 && g_EN_measure !=1 ){
 		g_EN_measure_LCD_display = 0 ;
 
-		g_lcd_mode = 1; //display EN measurements
+		g_lcd_mode = 2; //display EN measurements
 
 		//display/update lcd results
 		display_result= 1 ;
@@ -783,7 +786,7 @@ void change_lcd_display_mode(){
 	else if(g_left_button_pressed ==0 && g_EN_measure_LCD_display== 0 && g_SP_measure_LCD_diplay== 1  && g_SP_measure !=1 && g_EN_measure !=1){
 		g_SP_measure_LCD_diplay =0;
 
-		g_lcd_mode = 2; //display SP measurements
+		g_lcd_mode = 1; //display SP measurements
 
 		//display/update lcd results
 		display_result= 1 ;
@@ -799,7 +802,7 @@ void change_lcd_display_mode(){
 		display_result = 0;
 
 
-		if(g_lcd_mode == 1){//display mode 1: EN measurement
+		if(g_lcd_mode == 2){//display mode 2: EN measurement
 			display_result = 0; //display contents once only
 			//clear current LCD contents
 			Lcd_clear(&lcd);
@@ -819,7 +822,7 @@ void change_lcd_display_mode(){
 
 
 		}
-		else if(g_lcd_mode == 2 ){//disply mode 2: SP measurements
+		else if(g_lcd_mode == 1 ){//disply mode 2: SP measurements
 
 			display_result = 0 ; //display content only once
 
@@ -840,6 +843,14 @@ void change_lcd_display_mode(){
 			Lcd_cursor(&lcd, 1, 9) ;
 			snprintf(g_panel_eff, sizeof(g_panel_voltage),"E:%03d%%",g_pv_eff);
 			Lcd_string(&lcd, g_panel_eff);
+		}
+
+		else{
+			if(g_lcd_mode == 3){ //display mode 3: RTC
+				display_result = 0 ; //display content only once
+				Lcd_clear(&lcd);
+
+			}
 		}
 
 	}
