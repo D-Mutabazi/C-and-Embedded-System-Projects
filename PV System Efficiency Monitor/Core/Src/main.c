@@ -763,6 +763,7 @@ void change_lcd_display_mode(){
 		g_left_button_pressed = 0;
 		g_lcd_mode ++;
 
+		//cycles between the mode
 		if(g_lcd_mode>2){
 			g_lcd_mode = 1 ;
 		}
