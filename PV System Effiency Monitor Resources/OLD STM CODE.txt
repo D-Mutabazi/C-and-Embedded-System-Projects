@@ -129,7 +129,7 @@ char g_panel_mpp_power[4] = {} ;
 //reduction in LCD real time value update frequecy, to improve response time.
 char g_panel_voltage_and_current[17] = {};
 
-char g_envir_measure_temperatures[17] = {} ;  //store temperatue measures
+char g_envir_measure_temperatures[17] = {} ; //store the environment measure results
 
 char g_panel_power_and_efficiency[17] = {};
 uint8_t g_read_real_time_values = 1 ;
@@ -183,6 +183,8 @@ uint8_t g_update_RTC  = 0 ;  //indicates if parameter should be updated
 uint8_t g_RTC_parameter  =0;
 char g_date[11] = {};
 char g_time[9] = {};
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -540,7 +542,7 @@ void store_system_state_in_buffer(char analog_temp[], char dig_temp[],char lux_v
 void ADC_Select_CH0(void){
 	ADC_ChannelConfTypeDef sConfig = {0};
 
-	sConfig.Channel = ADC_CHANNEL_0;
+	sConfig.Channel = ADC_CHANNEL_4;
 	sConfig.Rank = 1;
 	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -764,14 +766,11 @@ void change_lcd_display_mode(){
 		Lcd_string(&lcd, g_panel_power_and_efficiency);
 
 		//get default date and time
-		HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
-		HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN) ;
-
 		snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
 		snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
 
-	}
 
+	}
 
 
 	//update state based on button press - DONT UPDATE ANYS STATES WHILE MEASURING
@@ -821,8 +820,9 @@ void change_lcd_display_mode(){
 
 		if(g_lcd_mode == 2){//display mode 2: EN measurement
 			display_result = 0; //display contents once only
-			//clear current LCD contents
+
 			Lcd_clear(&lcd);
+
 			//first row
 			Lcd_cursor(&lcd, 0, 0) ;
 			snprintf(g_envir_measure_temperatures, sizeof(g_envir_measure_temperatures),"AMB:%03dC SP:%03dC",g_temp_in_deg,g_lmt01_sens_temp);
@@ -832,6 +832,7 @@ void change_lcd_display_mode(){
 			Lcd_cursor(&lcd, 1,0);
 			snprintf(g_lcd_lux_val, sizeof(g_lcd_lux_val),"LUX:%05d",g_get_lxd_value);
 			Lcd_string(&lcd,g_lcd_lux_val);
+
 
 
 		}
@@ -865,10 +866,315 @@ void change_lcd_display_mode(){
 				//display time - second row
 				Lcd_cursor(&lcd, 1, 0) ;
 				Lcd_string(&lcd, g_time);
+
 			}
 		}
 
 	}
+
+}
+
+/**
+ * This function sets the date and time on the real time clock.
+ * On every middle button press input , the parameter updates get switched
+ *In this mode the top and bottom buttons get used to increment or decrement the parameters
+ *The system is designed such that until all the parameters are set ,no other state is execessible.
+ *Once the Menu state is entered. It can only be exited on when the left button is pressed. This restores normal system state functionality
+ *The top and bottom measurements can be used to update /start or stop the measurement sequence
+ */
+
+void RTC_date_and_time_update(uint8_t paramx){
+
+	//IF UPDATING RTC VALUES - do not use top button and bottom button for measurement sequence
+
+	if(paramx == 1){ //update date
+
+		//top button pressed - increment date
+		if(g_top_button_pressed== 1){
+			sDate.Date++ ;
+
+			//oveflow
+			if(sDate.Date > 30){
+				sDate.Date = 1 ;
+			}
+
+			g_top_button_pressed =0 ;
+
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0	) ;
+			Lcd_string(&lcd, g_time);
+
+
+		}
+
+		//bottom button press -decrement date
+		if(g_bottom_button_pressed== 1){
+			sDate.Date-- ;
+
+			//oveflow
+			if(sDate.Date < 1){
+				sDate.Date = 31 ;
+			}
+
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+
+			g_bottom_button_pressed =0 ;
+		}
+
+	}
+	else if(paramx == 2){ //update month
+
+		//top button pressed - increment month
+		if(g_top_button_pressed== 1){
+			sDate.Month++ ;
+
+			//oveflow
+			if(sDate.Month > 12){
+				sDate.Month = 1 ;
+			}
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_top_button_pressed =0 ;
+		}
+
+		//bottom button press -decrement month
+
+		if(g_bottom_button_pressed== 1){
+			sDate.Month-- ;
+
+			//oveflow
+			if(sDate.Month < 1){
+				sDate.Month = 12 ;
+			}
+
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_bottom_button_pressed =0 ;
+		}
+
+	}
+	else if(paramx == 3){ //update year -
+		//top button pressed - increment Year
+		if(g_top_button_pressed== 1){
+			sDate.Year++ ;
+
+			//oveflow
+			if(sDate.Year > 99){
+				sDate.Year = 0 ;
+			}
+
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_top_button_pressed =0 ;
+		}
+
+		//bottom button press -decrement year
+
+		if(g_bottom_button_pressed== 1){
+			sDate.Year-- ;
+
+			//oveflow
+			if(sDate.Year < 1){
+				sDate.Year = 99 ;
+			}
+
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_bottom_button_pressed =0 ;
+		}
+	}
+
+	else if(paramx == 4){//update hour
+		//top button pressed - increment Year
+		if(g_top_button_pressed== 1){
+			sTime.Hours++ ;
+
+			//oveflow
+			if(sTime.Hours > 24){
+				sTime.Hours = 1 ;
+			}
+
+			g_top_button_pressed =0 ;
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+
+		}
+
+		//bottom button press -decrement month
+
+		if(g_bottom_button_pressed== 1){
+			sTime.Hours-- ;
+
+			//oveflow
+			if(sTime.Hours < 1){
+				sTime.Hours = 24 ;
+			}
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_bottom_button_pressed =0 ;
+		}
+	}
+
+	else if(paramx ==5){//update minutes
+		//top button pressed - increment minutes
+		if(g_top_button_pressed== 1){
+			sTime.Minutes++ ;
+
+			//oveflow
+			if(sTime.Minutes > 60){
+				sTime.Minutes = 1 ;
+			}
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_top_button_pressed =0 ;
+		}
+
+		//bottom button press -decrement month
+
+		if(g_bottom_button_pressed== 1){
+			sTime.Minutes-- ;
+
+			//oveflow
+			if(sTime.Minutes < 1){
+				sTime.Minutes = 60 ;
+			}
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_bottom_button_pressed =0 ;
+		}
+	}
+
+	else if(paramx == 6){//update seconds
+		//top button pressed - increment Year
+		if(g_top_button_pressed== 1){
+			sTime.Seconds++ ;
+
+			//oveflow
+			if(sTime.Seconds > 60){
+				sTime.Seconds = 1 ;
+			}
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_top_button_pressed =0 ;
+		}
+
+		//bottom button press -decrement month
+
+		if(g_bottom_button_pressed== 1){
+			sTime.Seconds-- ;
+
+			//oveflow
+			if(sTime.Seconds < 1){
+				sTime.Seconds = 60 ;
+			}
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_bottom_button_pressed =0 ;
+		}
+	}
+
+	else{ //set the date and time globally
+
+		if(paramx == 7){
+			g_update_RTC = 0 ; //done updating the RTC
+			//update date and time
+			HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) ;
+
+			HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+		}
+
+	}
+
 
 }
 /* USER CODE END 0 */
@@ -986,23 +1292,21 @@ int main(void)
 			clear_lcd_display = 0;
 			Lcd_clear(&lcd);
 		}
+
 		//LCD write - real-time measured Vpv (mV), Ipv (mA), Ppv (mW), Peff = 0 while measuring
-		//few commands - (have 2 write commands, and reduce rate of sampling/real time value display)
-
 		//update valus only every 30ms
-		if(HAL_GetTick() - g_previous_time_of_lcd >=30){
-			//write to lcd - //row 1
-			Lcd_cursor(&lcd, 0, 0) ;
-			snprintf(g_panel_voltage_and_current, sizeof(g_panel_voltage_and_current),"V:%04dmV I:%03dmA",g_PV_vol1,g_i_pv);
-			Lcd_string(&lcd, g_panel_voltage_and_current);
+		//write to lcd - //row 1
+		Lcd_cursor(&lcd, 0, 0) ;
+		snprintf(g_panel_voltage_and_current, sizeof(g_panel_voltage_and_current),"V:%04dmV I:%03dmA",g_PV_vol1,g_i_pv);
+		Lcd_string(&lcd, g_panel_voltage_and_current);
 
-			//2nd row
-			Lcd_cursor(&lcd, 1, 0) ;
-			snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_pv, g_pv_eff);
-			Lcd_string(&lcd, g_panel_power_and_efficiency);
+		//2nd row
+		Lcd_cursor(&lcd, 1, 0) ;
+		snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_pv, g_pv_eff);
+		Lcd_string(&lcd, g_panel_power_and_efficiency);
 
-			g_previous_time_of_lcd = HAL_GetTick() ;
-		}
+		g_previous_time_of_lcd = HAL_GetTick() ;
+
 
 
 		//Flash D2 LED
@@ -1013,10 +1317,7 @@ int main(void)
 		  //enter this state once
 		  g_SP_measure = 0;
 
-		  //clear lcd
-//		  Lcd_clear(&lcd);
 		  //update LCD mode to SP measurements
-
 		  g_SP_measure_LCD_diplay =  1;
 		  g_EN_measure_LCD_display = 0; //dont diplay EN measurements
 
@@ -1130,7 +1431,7 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Channel = ADC_CHANNEL_4;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
