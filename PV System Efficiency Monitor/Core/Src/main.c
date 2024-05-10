@@ -871,6 +871,334 @@ void change_lcd_display_mode(){
 	}
 
 }
+
+/**
+ * This function sets the date and time on the real time clock.
+ * On every middle button press input , the parameter updates get switched
+ *In this mode the top and bottom buttons get used to increment or decrement the parameters
+ *The system is designed such that until all the parameters are set ,no other state is execessible.
+ *Once the Menu state is entered. It can only be exited on when the left button is pressed. This restores normal system state functionality
+ *The top and bottom measurements can be used to update /start or stop the measurement sequence
+ */
+
+void RTC_date_and_time_update(uint8_t paramx){
+
+	//IF UPDATING RTC VALUES - do not use top button and bottom button for measurement sequence
+
+	if(paramx == 1){ //update date
+
+		//top button pressed - increment date
+		if(g_top_button_pressed== 1){
+			sDate.Date++ ;
+
+			//oveflow
+			if(sDate.Date > 30){
+				sDate.Date = 1 ;
+			}
+
+			g_top_button_pressed =0 ;
+
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0	) ;
+			Lcd_string(&lcd, g_time);
+
+
+		}
+
+		//bottom button press -decrement date
+		if(g_bottom_button_pressed== 1){
+			sDate.Date-- ;
+
+			//oveflow
+			if(sDate.Date < 1){
+				sDate.Date = 31 ;
+			}
+
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+
+			g_bottom_button_pressed =0 ;
+		}
+
+	}
+	else if(paramx == 2){ //update month
+
+		//top button pressed - increment month
+		if(g_top_button_pressed== 1){
+			sDate.Month++ ;
+
+			//oveflow
+			if(sDate.Month > 12){
+				sDate.Month = 1 ;
+			}
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_top_button_pressed =0 ;
+		}
+
+		//bottom button press -decrement month
+
+		if(g_bottom_button_pressed== 1){
+			sDate.Month-- ;
+
+			//oveflow
+			if(sDate.Month < 1){
+				sDate.Month = 12 ;
+			}
+
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_bottom_button_pressed =0 ;
+		}
+
+	}
+	else if(paramx == 3){ //update year -
+		//top button pressed - increment Year
+		if(g_top_button_pressed== 1){
+			sDate.Year++ ;
+
+			//oveflow
+			if(sDate.Year > 99){
+				sDate.Year = 0 ;
+			}
+
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_top_button_pressed =0 ;
+		}
+
+		//bottom button press -decrement year
+
+		if(g_bottom_button_pressed== 1){
+			sDate.Year-- ;
+
+			//oveflow
+			if(sDate.Year < 1){
+				sDate.Year = 99 ;
+			}
+
+			//display date - first row
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_bottom_button_pressed =0 ;
+		}
+	}
+
+	else if(paramx == 4){//update hour
+		//top button pressed - increment Year
+		if(g_top_button_pressed== 1){
+			sTime.Hours++ ;
+
+			//oveflow
+			if(sTime.Hours > 24){
+				sTime.Hours = 1 ;
+			}
+
+			g_top_button_pressed =0 ;
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+
+		}
+
+		//bottom button press -decrement month
+
+		if(g_bottom_button_pressed== 1){
+			sTime.Hours-- ;
+
+			//oveflow
+			if(sTime.Hours < 1){
+				sTime.Hours = 24 ;
+			}
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_bottom_button_pressed =0 ;
+		}
+	}
+
+	else if(paramx ==5){//update minutes
+		//top button pressed - increment minutes
+		if(g_top_button_pressed== 1){
+			sTime.Minutes++ ;
+
+			//oveflow
+			if(sTime.Minutes > 60){
+				sTime.Minutes = 1 ;
+			}
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_top_button_pressed =0 ;
+		}
+
+		//bottom button press -decrement month
+
+		if(g_bottom_button_pressed== 1){
+			sTime.Minutes-- ;
+
+			//oveflow
+			if(sTime.Minutes < 1){
+				sTime.Minutes = 60 ;
+			}
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_bottom_button_pressed =0 ;
+		}
+	}
+
+	else if(paramx == 6){//update seconds
+		//top button pressed - increment Year
+		if(g_top_button_pressed== 1){
+			sTime.Seconds++ ;
+
+			//oveflow
+			if(sTime.Seconds > 60){
+				sTime.Seconds = 1 ;
+			}
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_top_button_pressed =0 ;
+		}
+
+		//bottom button press -decrement month
+
+		if(g_bottom_button_pressed== 1){
+			sTime.Seconds-- ;
+
+			//oveflow
+			if(sTime.Seconds < 1){
+				sTime.Seconds = 60 ;
+			}
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			//display time - second row
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+
+			g_bottom_button_pressed =0 ;
+		}
+	}
+
+	else{ //set the date and time globally
+
+		if(paramx == 7){
+			g_update_RTC = 0 ; //done updating the RTC
+			//update date and time
+			HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) ;
+
+			HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+
+			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+
+			Lcd_cursor(&lcd, 0, 0) ;
+			Lcd_string(&lcd, g_date);
+
+			Lcd_cursor(&lcd, 1, 0) ;
+			Lcd_string(&lcd, g_time);
+		}
+
+	}
+
+
+}
+
+void g_clock_menu_set_and_parameter_update(){
+	if(g_middle_button_pressed == 1){
+		g_middle_button_pressed = 0;
+
+		//RTC menu
+		if(g_update_RTC ==0){
+			g_update_RTC = 1;
+
+		}
+
+		//increment parameter to update
+		g_RTC_parameter++ ;
+
+		if(g_RTC_parameter>6){
+			g_RTC_parameter = 1; //cycle back to first parameter
+		}
+
+
+	}
+
+	//update parameters
+
+}
 /* USER CODE END 0 */
 
 /**
