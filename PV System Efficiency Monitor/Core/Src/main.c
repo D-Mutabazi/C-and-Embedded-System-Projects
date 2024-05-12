@@ -215,6 +215,7 @@ void en_measurement_update() ;
 void sp_measurement_update() ;
 void sp_measurements_and_responses() ;
 void g_clock_menu_set_and_parameter_update() ;
+void lcd_display_mode_change_on_button_press() ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -919,46 +920,9 @@ void change_lcd_display_mode(){
 
 	//check for LCD MODE 4 -> switch between the different display modes at interval of 2s
 
+	//dont change lcd modes when measuring the
+	lcd_display_mode_change_on_button_press() ;
 
-	//update state based on button press - DONT UPDATE ANYS STATES WHILE MEASURING
-	if(g_left_button_pressed == 1 && g_EN_measure_LCD_display ==0 && g_SP_measure_LCD_diplay ==0 && g_SP_measure !=1 && g_EN_measure !=1){
-
-		//display/update lcd results
-		display_result= 1 ;
-
-		g_left_button_pressed = 0;
-		g_lcd_mode ++;
-
-		//cycles between the mode
-		if(g_lcd_mode>3){
-			g_lcd_mode = 1 ;
-		}
-	}
-
-	//update lcd state based on  EN stop command
-	else if(g_left_button_pressed == 0 && g_EN_measure_LCD_display == 1 && g_SP_measure_LCD_diplay ==0  && g_SP_measure !=1 && g_EN_measure !=1 ){
-		g_EN_measure_LCD_display = 0 ;
-
-		g_lcd_mode = 2; //display EN measurements
-
-		//display/update lcd results
-		display_result= 1 ;
-	}
-
-	//update LCD based on SP command
-	else if(g_left_button_pressed ==0 && g_EN_measure_LCD_display== 0 && g_SP_measure_LCD_diplay== 1  && g_SP_measure !=1 && g_EN_measure !=1){
-		g_SP_measure_LCD_diplay =0;
-
-		g_lcd_mode = 1; //display SP measurements
-
-		//display/update lcd results
-		display_result= 1 ;
-	}
-
-	//otherwise dont update display maode
-	else{
-		g_lcd_mode = g_lcd_mode ;
-	}
 
 	if(display_result == 1){
 		display_result = 0;
@@ -1021,6 +985,53 @@ void change_lcd_display_mode(){
 			}
 		}
 
+	}
+
+}
+
+/**
+ * This function works to change the LCD display modes when the left button is pressed
+ */
+void lcd_display_mode_change_on_button_press(){
+
+	//update state based on button press - DONT UPDATE ANYS STATES WHILE MEASURING
+	if(g_left_button_pressed == 1 && g_EN_measure_LCD_display ==0 && g_SP_measure_LCD_diplay ==0 && g_SP_measure !=1 && g_EN_measure !=1){
+
+		//display/update lcd results
+		display_result= 1 ;
+
+		g_left_button_pressed = 0;
+		g_lcd_mode ++;
+
+		//cycles between the mode
+		if(g_lcd_mode>3){
+			g_lcd_mode = 1 ;
+		}
+	}
+
+	//update lcd state based on  EN stop command
+	else if(g_left_button_pressed == 0 && g_EN_measure_LCD_display == 1 && g_SP_measure_LCD_diplay ==0  && g_SP_measure !=1 && g_EN_measure !=1 ){
+		g_EN_measure_LCD_display = 0 ;
+
+		g_lcd_mode = 2; //display EN measurements
+
+		//display/update lcd results
+		display_result= 1 ;
+	}
+
+	//update LCD based on SP command
+	else if(g_left_button_pressed ==0 && g_EN_measure_LCD_display== 0 && g_SP_measure_LCD_diplay== 1  && g_SP_measure !=1 && g_EN_measure !=1){
+		g_SP_measure_LCD_diplay =0;
+
+		g_lcd_mode = 1; //display SP measurements
+
+		//display/update lcd results
+		display_result= 1 ;
+	}
+
+	//otherwise dont update display maode
+	else{
+		g_lcd_mode = g_lcd_mode ;
 	}
 
 }
