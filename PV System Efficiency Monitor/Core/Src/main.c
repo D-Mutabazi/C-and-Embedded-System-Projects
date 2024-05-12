@@ -219,6 +219,7 @@ void lcd_display_mode_change_on_button_press() ;
 void lcd_Mode_1() ;
 void lcd_Mode_2() ;
 void lcd_Mode_3();
+void change_between_dispplay_modes() ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -946,6 +947,7 @@ void lcd_Mode_3(){
  * state of the system
  */
 
+uint8_t default_switch_mode = 1;
 void change_lcd_display_mode(){
 	//display default display mode
 	if(g_lcd_default_mode == 1){
@@ -976,7 +978,6 @@ void change_lcd_display_mode(){
 
 	}
 
-	//check for LCD MODE 4 -> switch between the different display modes at interval of 2s
 
 	//dont change lcd modes when updating the RTC
 	if(g_update_RTC ==0){
@@ -1019,29 +1020,52 @@ void change_lcd_display_mode(){
 
 	}
 
+	//check for LCD MODE 4 -> switch between the different display modes at interval of 2s
+	else if(display_result ==0 && g_lcd_mode == 4 ){
+		//change to default mode 1 in the beginning
+		if(default_switch_mode == 1){
+//			Lcd_clear(&lcd);
+//			lcd_Mode_1() ;
+
+			default_switch_mode = 0;
+		}
+
+		change_between_dispplay_modes();
+	}
+
 }
 
 uint32_t time_passed_between_mode = 0 ;
-uint8_t display_mode_x = 0;
+uint8_t display_mode_x = 2; //start at mode 2
 
 void change_between_dispplay_modes(){
 
-	if(HAL_GetTick()- time_passed_between_mode >2000 && display_mode_x == 1){
+	if(HAL_GetTick()- time_passed_between_mode >= 2000 && display_mode_x == 1){
 		display_mode_x = 2 ;
 //		time_passed_between_mode = HAL_GetTick() ;
+		lcd_Mode_1() ;
 
 	}
 
-	else if(HAL_GetTick()- time_passed_between_mode >4000 && display_mode_x == 2){
+	else if(HAL_GetTick()- time_passed_between_mode >=4000 && display_mode_x == 2){
 		display_mode_x = 3 ;
 //		time_passed_between_mode = HAL_GetTick() ;
+		lcd_Mode_2();
+
 	}
 
-	if(HAL_GetTick()- time_passed_between_mode >6000 && display_mode_x == 3){
-		display_mode_x = 1 ;
+	if(HAL_GetTick()- time_passed_between_mode >=6000 && display_mode_x == 3){
+		display_mode_x= 1;
 		time_passed_between_mode = HAL_GetTick() ;
+		lcd_Mode_3() ;
 
 	}
+//
+//	if (HAL_GetTick()- time_passed_between_mode >6000){
+//		time_passed_between_mode = HAL_GetTick() ;
+//		display_mode_x = 1 ;
+//
+//	}
 
 }
 /**
