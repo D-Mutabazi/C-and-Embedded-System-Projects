@@ -997,6 +997,16 @@ void change_lcd_display_mode(){
 
 }
 
+uint32_t time_passed_between_mode = 0 ;
+uint8_t display_mode_1 = 0;
+
+void change_between_dispplay_modes(){
+
+	if(time_passed_between_mode - HA){
+
+	}
+
+}
 /**
  * This function works to change the LCD display modes when the left button is pressed
  */
@@ -1012,7 +1022,7 @@ void lcd_display_mode_change_on_button_press(){
 		g_lcd_mode ++;
 
 		//cycles between the mode
-		if(g_lcd_mode>3){
+		if(g_lcd_mode>4){
 			g_lcd_mode = 1 ;
 		}
 	}
