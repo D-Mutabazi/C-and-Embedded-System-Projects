@@ -214,6 +214,7 @@ void set_RTC_date_and_time();
 void en_measurement_update() ;
 void sp_measurement_update() ;
 void sp_measurements_and_responses() ;
+void g_clock_menu_set_and_parameter_update() ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -293,6 +294,7 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len){
 void system_state_update(){
 
 	//RTC menu enter/exit
+	g_clock_menu_set_and_parameter_update();
 
 	if(g_update_RTC == 0){
 		//CHECK FOR TYPE OF MEASUREMENT command rcvd via UART
@@ -1001,6 +1003,12 @@ void change_lcd_display_mode(){
 				display_result = 0 ; //display content only once
 				Lcd_clear(&lcd);
 
+				//display the updated time and date
+				HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN) ;
+				HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN) ;
+
+				snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+				snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
 				//display date
 				Lcd_cursor(&lcd, 0, 0) ;
 				Lcd_string(&lcd, g_date);
@@ -1008,6 +1016,8 @@ void change_lcd_display_mode(){
 				//display time - second row
 				Lcd_cursor(&lcd, 1, 0) ;
 				Lcd_string(&lcd, g_time);
+
+
 			}
 		}
 
@@ -1328,22 +1338,25 @@ void g_clock_menu_set_and_parameter_update(){
 		if(g_update_RTC ==0){
 			g_update_RTC = 1;
 
+			//set LCD in mode 3 - LCD parameter
+			display_result = 1;
+
+			g_lcd_mode = 3  ;
 		}
 
 		//increment parameter to update
 		g_RTC_parameter++ ;
 
-//		if(g_RTC_parameter>6){
-//			g_RTC_parameter = 1; //cycle back to first parameter
-//		}
-
-		if(g_update_RTC == 1){
-			RTC_date_and_time_update(g_RTC_parameter) ;
+		if(g_RTC_parameter>7){
+			g_RTC_parameter = 1; //cycle back to first parameter once RTC entered again
 		}
 
 	}
 
 	//update parameters
+	if(g_update_RTC == 1){
+		RTC_date_and_time_update(g_RTC_parameter) ;
+	}
 
 }
 
