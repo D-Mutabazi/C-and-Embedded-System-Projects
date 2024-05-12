@@ -213,6 +213,7 @@ void change_lcd_display_mode();
 void set_RTC_date_and_time();
 void en_measurement_update() ;
 void sp_measurement_update() ;
+void sp_measurements_and_responses() ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -291,38 +292,45 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len){
  */
 void system_state_update(){
 
-	//CHECK FOR TYPE OF MEASUREMENT command rcvd via UART
-	if( g_config_command_rcvd == 1){
-		g_config_command_rcvd = 0;
+	//RTC menu enter/exit
+
+	if(g_update_RTC == 0){
+		//CHECK FOR TYPE OF MEASUREMENT command rcvd via UART
+		if( g_config_command_rcvd == 1){
+			g_config_command_rcvd = 0;
 
 
-		if( g_system_config[2]=='E' && g_system_config[3] == 'N'){
-			// EN measure comand
-			g_EN_config_command_rcvd =1 ;
-			//stop SP measure
-			g_SP_config_command_rcvd =0 ;
+			if( g_system_config[2]=='E' && g_system_config[3] == 'N'){
+				// EN measure comand
+				g_EN_config_command_rcvd =1 ;
+				//stop SP measure
+				g_SP_config_command_rcvd =0 ;
 
+			}
+
+			else if(g_system_config[2]=='S' && g_system_config[3] == 'P'){
+				// SP command
+				g_SP_config_command_rcvd =1 ;
+				//stop EN command
+				g_EN_config_command_rcvd =0;
+
+			}
+
+			//extend to CA
+
+			else{
+				HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Invalid Command\n", 16);
+			}
 		}
 
-		else if(g_system_config[2]=='S' && g_system_config[3] == 'P'){
-			// SP command
-			g_SP_config_command_rcvd =1 ;
-			//stop EN command
-			g_EN_config_command_rcvd =0;
-
-		}
-
-		//extend to CA
-
-		else{
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Invalid Command\n", 16);
-		}
+		//perform en measurements
+		en_measurement_update() ;
+		//perform sp measurement
+		sp_measurement_update() ;
 	}
-
-	//perform en measurements
-	en_measurement_update() ;
-	//perform sp measurement
-	sp_measurement_update() ;
+	else{
+		//dont update any states while in the RTC menu
+	}
 
 }
 
@@ -712,6 +720,111 @@ void en_measurements_and_responses(){
 	}
 }
 
+/**
+ * This funtion performs the measurement for UR2: Photocvoltaic measurements.
+ * It measures the PV voltage, PV current, PV power and PV efficiency,
+ * Measurements and responses, transmitted to UART and LCD
+ */
+void sp_measurements_and_responses(){
+	  if(g_SP_measure == 1){
+
+		// ignore top button and left button press and EN command while measuring
+		if(g_top_button_pressed ==1 || g_EN_config_command_rcvd ==1 || g_left_button_pressed ==1){
+		  g_top_button_pressed = 0 ;
+		  g_EN_config_command_rcvd = 0;
+		  g_left_button_pressed = 0;
+		}
+
+		//reprime state transmission
+		if(g_transmit_SP_system_state == 0){
+			g_transmit_SP_system_state = 1;
+		}
+		//PV panel data points measure
+		g_PV_vol1 = get_pv_panel_adc2_input() ; //Voc = Vsp
+		//*ADC input(2) Vb = V_var
+		g_PV_vol2= get_pv_panel_adc1_input() ;
+
+		//GET VALUES
+		//Voc measure - Voc, vpv
+		if(g_PV_vol1 > g_prev_v_pv){
+		  g_prev_v_pv = g_PV_vol1 ;
+		  //capture maximum open circuit voltage
+		  g_v_oc_pv = g_PV_vol1 ;
+		}
+
+		//curent measure - Isc, Ipv
+		if(g_PV_vol1 - g_PV_vol2 >0){
+			g_i_pv = g_PV_vol1 - g_PV_vol2 ;
+		}
+		else{
+			g_i_pv = g_i_pv ; //dont update current
+		}
+
+		//power measure - multiply by 1000, to get result in mW
+		g_p_pv = ( (g_PV_vol1 * g_i_pv)/1000000.0) *1000;
+
+
+		/*mpp values measure using power -Pmpp, Vmpp, Impp*/
+		//check is power increasing
+		if(g_p_pv > g_prev_p_pv ){
+			g_p_mpp = g_p_pv ;
+			g_v_mpp = g_PV_vol1 ;
+			g_i_mpp = g_i_pv ;
+			g_prev_p_pv = g_p_pv ;
+		}
+
+
+		if(clear_lcd_display == 1){
+			clear_lcd_display = 0;
+			Lcd_clear(&lcd);
+		}
+		//LCD write - real-time measured Vpv (mV), Ipv (mA), Ppv (mW), Peff = 0 while measuring
+		//few commands - (have 2 write commands, and reduce rate of sampling/real time value display)
+
+		//update valus only every 30ms
+		if(HAL_GetTick() - g_previous_time_of_lcd >=30){
+			//write to lcd - //row 1
+			Lcd_cursor(&lcd, 0, 0) ;
+			snprintf(g_panel_voltage_and_current, sizeof(g_panel_voltage_and_current),"V:%04dmV I:%03dmA",g_PV_vol1,g_i_pv);
+			Lcd_string(&lcd, g_panel_voltage_and_current);
+
+			//2nd row
+			Lcd_cursor(&lcd, 1, 0) ;
+			snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_pv, g_pv_eff);
+			Lcd_string(&lcd, g_panel_power_and_efficiency);
+
+			g_previous_time_of_lcd = HAL_GetTick() ;
+		}
+
+
+		//Flash D2 LED
+		flash_led_d2() ;
+	  }
+
+	  else if(g_SP_measure == 2){
+		  //enter this state once
+		  g_SP_measure = 0;
+
+		  //clear lcd
+//		  Lcd_clear(&lcd);
+		  //update LCD mode to SP measurements
+
+		  g_SP_measure_LCD_diplay =  1;
+		  g_EN_measure_LCD_display = 0; //dont diplay EN measurements
+
+		  //set LED D2
+		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET) ;
+		  snprintf(system_state_SP_transmit,sizeof(system_state_SP_transmit), "&_%04d_%03d_%03d_%03d_*\n",g_v_mpp,g_i_mpp,g_p_mpp,g_pv_eff);
+		  //transmit system SP response
+		  if(g_transmit_SP_system_state == 1){
+
+			  g_transmit_SP_system_state = 0 ;
+			  //transmit over UART
+			  HAL_UART_Transmit_IT(&huart2,(uint8_t*)system_state_SP_transmit, 21) ;
+
+		  }
+	  }
+}
 /**
  * This function retrieves the ADC panel voltage,
  * across adc input 1
@@ -1182,7 +1295,7 @@ void RTC_date_and_time_update(uint8_t paramx){
 		}
 	}
 
-	else{ //set the date and time globally
+	else{ //exit the RTC menu
 
 		if(paramx == 7){
 			g_update_RTC = 0 ; //done updating the RTC
@@ -1220,8 +1333,12 @@ void g_clock_menu_set_and_parameter_update(){
 		//increment parameter to update
 		g_RTC_parameter++ ;
 
-		if(g_RTC_parameter>6){
-			g_RTC_parameter = 1; //cycle back to first parameter
+//		if(g_RTC_parameter>6){
+//			g_RTC_parameter = 1; //cycle back to first parameter
+//		}
+
+		if(g_update_RTC == 1){
+			RTC_date_and_time_update(g_RTC_parameter) ;
 		}
 
 	}
@@ -1294,110 +1411,14 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  //update system state based on input recvd
 	  system_state_update() ;
 
 	  //UR3: Evironment measure: measure Ta & measure Tb  (Put in Function)/Modularize
 	  en_measurements_and_responses() ;
 
 	  //UR2: PV Module -(Put in Function)/Modularize
-	  if(g_SP_measure == 1){
-
-		// ignore top button and left button press and EN command while measuring
-		if(g_top_button_pressed ==1 || g_EN_config_command_rcvd ==1 || g_left_button_pressed ==1){
-		  g_top_button_pressed = 0 ;
-		  g_EN_config_command_rcvd = 0;
-		  g_left_button_pressed = 0;
-		}
-
-		//reprime state transmission
-		if(g_transmit_SP_system_state == 0){
-			g_transmit_SP_system_state = 1;
-		}
-		//PV panel data points measure
-		g_PV_vol1 = get_pv_panel_adc2_input() ; //Voc = Vsp
-		//*ADC input(2) Vb = V_var
-		g_PV_vol2= get_pv_panel_adc1_input() ;
-
-		//GET VALUES
-		//Voc measure - Voc, vpv
-		if(g_PV_vol1 > g_prev_v_pv){
-		  g_prev_v_pv = g_PV_vol1 ;
-		  //capture maximum open circuit voltage
-		  g_v_oc_pv = g_PV_vol1 ;
-		}
-
-		//curent measure - Isc, Ipv
-		if(g_PV_vol1 - g_PV_vol2 >0){
-			g_i_pv = g_PV_vol1 - g_PV_vol2 ;
-		}
-		else{
-			g_i_pv = g_i_pv ; //dont update current
-		}
-
-		//power measure - multiply by 1000, to get result in mW
-		g_p_pv = ( (g_PV_vol1 * g_i_pv)/1000000.0) *1000;
-
-
-		/*mpp values measure using power -Pmpp, Vmpp, Impp*/
-		//check is power increasing
-		if(g_p_pv > g_prev_p_pv ){
-			g_p_mpp = g_p_pv ;
-			g_v_mpp = g_PV_vol1 ;
-			g_i_mpp = g_i_pv ;
-			g_prev_p_pv = g_p_pv ;
-		}
-
-
-		if(clear_lcd_display == 1){
-			clear_lcd_display = 0;
-			Lcd_clear(&lcd);
-		}
-		//LCD write - real-time measured Vpv (mV), Ipv (mA), Ppv (mW), Peff = 0 while measuring
-		//few commands - (have 2 write commands, and reduce rate of sampling/real time value display)
-
-		//update valus only every 30ms
-		if(HAL_GetTick() - g_previous_time_of_lcd >=30){
-			//write to lcd - //row 1
-			Lcd_cursor(&lcd, 0, 0) ;
-			snprintf(g_panel_voltage_and_current, sizeof(g_panel_voltage_and_current),"V:%04dmV I:%03dmA",g_PV_vol1,g_i_pv);
-			Lcd_string(&lcd, g_panel_voltage_and_current);
-
-			//2nd row
-			Lcd_cursor(&lcd, 1, 0) ;
-			snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_pv, g_pv_eff);
-			Lcd_string(&lcd, g_panel_power_and_efficiency);
-
-			g_previous_time_of_lcd = HAL_GetTick() ;
-		}
-
-
-		//Flash D2 LED
-		flash_led_d2() ;
-	  }
-
-	  else if(g_SP_measure == 2){
-		  //enter this state once
-		  g_SP_measure = 0;
-
-		  //clear lcd
-//		  Lcd_clear(&lcd);
-		  //update LCD mode to SP measurements
-
-		  g_SP_measure_LCD_diplay =  1;
-		  g_EN_measure_LCD_display = 0; //dont diplay EN measurements
-
-		  //set LED D2
-		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET) ;
-		  snprintf(system_state_SP_transmit,sizeof(system_state_SP_transmit), "&_%04d_%03d_%03d_%03d_*\n",g_v_mpp,g_i_mpp,g_p_mpp,g_pv_eff);
-		  //transmit system SP response
-		  if(g_transmit_SP_system_state == 1){
-
-			  g_transmit_SP_system_state = 0 ;
-			  //transmit over UART
-			  HAL_UART_Transmit_IT(&huart2,(uint8_t*)system_state_SP_transmit, 21) ;
-
-		  }
-	  }
+	  sp_measurements_and_responses();
 
 	  //update LCD - code runs seqeuntionally and lcd updates based on variable states above
 	  change_lcd_display_mode();
