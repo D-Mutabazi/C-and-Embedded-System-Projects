@@ -373,7 +373,7 @@ void system_state_update(){
 void ca_measurements_update(){
 
 	// CA - update via push button
-	if(g_right_button_pressed  == 1 && g_CA_config_command_rcvd == 0){
+	if(g_right_button_pressed  == 1 && g_CA_config_command_rcvd == 0  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==0 && (g_SP_measure == 0 || g_SP_measure ==2) && (g_EN_measure == 0 || g_EN_measure ==2)){
 		g_right_button_pressed = 0;
 
 		g_CA_measure++  ;
@@ -384,7 +384,7 @@ void ca_measurements_update(){
 	}
 
 	//CA update via UART
-	else if(g_right_button_pressed ==0  && g_CA_config_command_rcvd == 1){
+	else if(g_right_button_pressed ==0  && g_CA_config_command_rcvd == 1 && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==0 && (g_SP_measure == 0 || g_SP_measure ==2) && (g_EN_measure == 0 || g_EN_measure ==2)){
 		g_CA_config_command_rcvd = 0;
 
 		//check that the correct UART message recvd
@@ -416,7 +416,7 @@ void ca_measurements_update(){
 void en_measurement_update(){
 	// Environment Measure - And not measuring SP - modularise
 	// EN - update via push button
-	if(g_top_button_pressed  == 1 && g_EN_config_command_rcvd ==0 && g_SP_config_command_rcvd ==0 && (g_SP_measure == 0 || g_SP_measure ==2)  && (g_CA_measure == 0 || g_CA_measure ==2)){
+	if(g_top_button_pressed  == 1 && g_EN_config_command_rcvd ==0 && g_SP_config_command_rcvd ==0 && g_CA_config_command_rcvd == 0 && (g_SP_measure == 0 || g_SP_measure ==2)  && (g_CA_measure == 0 || g_CA_measure ==2)){
 		g_top_button_pressed = 0;
 
 		g_EN_measure++  ;
@@ -426,7 +426,7 @@ void en_measurement_update(){
 		}
 	}
 	//EN update via UART
-	else if(g_top_button_pressed ==0  && g_EN_config_command_rcvd == 1 && g_SP_config_command_rcvd ==0  && (g_SP_measure == 0 || g_SP_measure ==2) ){
+	else if(g_top_button_pressed ==0  && g_EN_config_command_rcvd == 1 && g_SP_config_command_rcvd ==0 && g_CA_config_command_rcvd == 0  && (g_SP_measure == 0 || g_SP_measure ==2)  && (g_CA_measure == 0 || g_CA_measure ==2)){
 		g_EN_config_command_rcvd = 0;
 
 		//check that the correct UART message recvd
@@ -458,7 +458,7 @@ void en_measurement_update(){
  */
 void sp_measurement_update(){
 	//SP Measure - update via bottom push button - modularise
-	if(g_bottom_button_pressed  == 1  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==0  && (g_EN_measure == 0 || g_EN_measure ==2)){
+	if(g_bottom_button_pressed  == 1  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==0  && g_CA_config_command_rcvd == 0 && (g_EN_measure == 0 || g_EN_measure ==2)  && (g_CA_measure == 0 || g_CA_measure ==2)){
 		//clear lcd display after EN measurement
 		Lcd_clear(&lcd); //to remove EN measure values
 		g_bottom_button_pressed = 0;
@@ -471,7 +471,7 @@ void sp_measurement_update(){
 	}
 
 	// SP update via uart
-	else if(g_bottom_button_pressed ==0  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==1 && (g_EN_measure == 0 || g_EN_measure ==2)){
+	else if(g_bottom_button_pressed ==0  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==1 && g_CA_config_command_rcvd == 0 && (g_EN_measure == 0 || g_EN_measure ==2) && (g_CA_measure == 0 || g_CA_measure ==2)){
 
 		//clear lcd display after EN measurement
 		Lcd_clear(&lcd); //to remove EN measure values
