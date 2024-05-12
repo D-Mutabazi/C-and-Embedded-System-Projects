@@ -216,6 +216,9 @@ void sp_measurement_update() ;
 void sp_measurements_and_responses() ;
 void g_clock_menu_set_and_parameter_update() ;
 void lcd_display_mode_change_on_button_press() ;
+void lcd_Mode_1() ;
+void lcd_Mode_2() ;
+void lcd_Mode_3();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -882,6 +885,61 @@ uint16_t get_pv_panel_adc2_input(){
 }
 
 /**
+ * SP Measurement
+ */
+void lcd_Mode_1(){
+	Lcd_clear(&lcd);
+
+	//first row
+	Lcd_cursor(&lcd, 0, 0) ;
+	snprintf(g_panel_voltage_and_current, sizeof(g_panel_voltage_and_current),"V:%04dmV I:%03dmA",g_v_mpp,g_i_mpp);
+	Lcd_string(&lcd, g_panel_voltage_and_current);
+
+	//2nd row
+	Lcd_cursor(&lcd, 1, 0) ;
+	snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_mpp, g_pv_eff);
+	Lcd_string(&lcd, g_panel_power_and_efficiency);
+
+}
+
+/**
+ * EN measurements
+ */
+void lcd_Mode_2(){
+	//clear current LCD contents
+	Lcd_clear(&lcd);
+	//first row
+	Lcd_cursor(&lcd, 0, 0) ;
+	snprintf(g_envir_measure_temperatures, sizeof(g_envir_measure_temperatures),"AMB:%03dC SP:%03dC",g_temp_in_deg,g_lmt01_sens_temp);
+	Lcd_string(&lcd, g_envir_measure_temperatures);
+
+	//scale lux value: [0: 30000]?
+	Lcd_cursor(&lcd, 1,0);
+	snprintf(g_lcd_lux_val, sizeof(g_lcd_lux_val),"LUX:%05d",g_get_lxd_value);
+	Lcd_string(&lcd,g_lcd_lux_val);
+}
+
+/**
+ * RTC measurements
+ */
+void lcd_Mode_3(){
+	Lcd_clear(&lcd);
+
+	//display the updated time and date
+	HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN) ;
+	HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN) ;
+
+	snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
+	snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
+	//display date
+	Lcd_cursor(&lcd, 0, 0) ;
+	Lcd_string(&lcd, g_date);
+
+	//display time - second row
+	Lcd_cursor(&lcd, 1, 0) ;
+	Lcd_string(&lcd, g_time);
+}
+/**
  * This function displays the values of the different measurement,
  * by altering the display mode on the LCD.
  * Changing the view is independent of the system ,and does not change any
@@ -938,57 +996,23 @@ void change_lcd_display_mode(){
 
 		if(g_lcd_mode == 2){//display mode 2: EN measurement
 			display_result = 0; //display contents once only
-			//clear current LCD contents
-			Lcd_clear(&lcd);
-			//first row
-			Lcd_cursor(&lcd, 0, 0) ;
-			snprintf(g_envir_measure_temperatures, sizeof(g_envir_measure_temperatures),"AMB:%03dC SP:%03dC",g_temp_in_deg,g_lmt01_sens_temp);
-			Lcd_string(&lcd, g_envir_measure_temperatures);
 
-			//scale lux value: [0: 30000]?
-			Lcd_cursor(&lcd, 1,0);
-			snprintf(g_lcd_lux_val, sizeof(g_lcd_lux_val),"LUX:%05d",g_get_lxd_value);
-			Lcd_string(&lcd,g_lcd_lux_val);
-
+			lcd_Mode_2() ;
 
 		}
-		else if(g_lcd_mode == 1 ){//disply mode 2: SP measurements
+		else if(g_lcd_mode == 1 ){//disply mode 1: SP measurements
 
 			display_result = 0 ; //display content only once
 
-			Lcd_clear(&lcd);
-
-			//first row
-			Lcd_cursor(&lcd, 0, 0) ;
-			snprintf(g_panel_voltage_and_current, sizeof(g_panel_voltage_and_current),"V:%04dmV I:%03dmA",g_v_mpp,g_i_mpp);
-			Lcd_string(&lcd, g_panel_voltage_and_current);
-
-			//2nd row
-			Lcd_cursor(&lcd, 1, 0) ;
-			snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_mpp, g_pv_eff);
-			Lcd_string(&lcd, g_panel_power_and_efficiency);
+			lcd_Mode_1() ;
 
 		}
 
 		else{
 			if(g_lcd_mode == 3){ //display mode 3: RTC
 				display_result = 0 ; //display content only once
-				Lcd_clear(&lcd);
 
-				//display the updated time and date
-				HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN) ;
-				HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN) ;
-
-				snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
-				snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
-				//display date
-				Lcd_cursor(&lcd, 0, 0) ;
-				Lcd_string(&lcd, g_date);
-
-				//display time - second row
-				Lcd_cursor(&lcd, 1, 0) ;
-				Lcd_string(&lcd, g_time);
-
+				lcd_Mode_3();
 
 			}
 		}
@@ -998,11 +1022,24 @@ void change_lcd_display_mode(){
 }
 
 uint32_t time_passed_between_mode = 0 ;
-uint8_t display_mode_1 = 0;
+uint8_t display_mode_x = 0;
 
 void change_between_dispplay_modes(){
 
-	if(time_passed_between_mode - HA){
+	if(HAL_GetTick()- time_passed_between_mode >2000 && display_mode_x == 1){
+		display_mode_x = 2 ;
+//		time_passed_between_mode = HAL_GetTick() ;
+
+	}
+
+	else if(HAL_GetTick()- time_passed_between_mode >4000 && display_mode_x == 2){
+		display_mode_x = 3 ;
+//		time_passed_between_mode = HAL_GetTick() ;
+	}
+
+	if(HAL_GetTick()- time_passed_between_mode >6000 && display_mode_x == 3){
+		display_mode_x = 1 ;
+		time_passed_between_mode = HAL_GetTick() ;
 
 	}
 
