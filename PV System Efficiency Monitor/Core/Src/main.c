@@ -157,6 +157,11 @@ uint8_t g_SP_measure_LCD_diplay= 0;
 uint8_t g_LED_D2_ON  =0 ;   // LED D2 state initially off
 uint8_t g_SP_config_command_rcvd = 0;
 
+// CA (calibration)
+uint8_t g_CA_config_command_rcvd = 0;
+uint8_t g_LED_D4_ON  =0 ;   // LED D2 state initially off
+uint8_t g_CA_measure= 0;
+
 
 char system_state_transmit[19] = {} ;
 char system_state_SP_transmit[22] = {} ;
@@ -200,6 +205,7 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len) ;
 void system_state_update() ;
 void flash_led_d3() ;
 void flash_led_d2() ;
+void flash_led_d4() ;
 void store_system_state_in_buffer(char analog_temp[], char dig_temp[],char lux_value[],char system_state[], uint8_t len_of_sys_arr );
 void en_measurements_and_responses();
 void ADC_Select_CH0(void) ;
@@ -214,12 +220,14 @@ void set_RTC_date_and_time();
 void en_measurement_update() ;
 void sp_measurement_update() ;
 void sp_measurements_and_responses() ;
+void ca_measurements_and_responses();
 void g_clock_menu_set_and_parameter_update() ;
 void lcd_display_mode_change_on_button_press() ;
 void lcd_Mode_1() ;
 void lcd_Mode_2() ;
 void lcd_Mode_3();
 void change_between_dispplay_modes() ;
+void ca_measurements_update();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -312,6 +320,8 @@ void system_state_update(){
 				g_EN_config_command_rcvd =1 ;
 				//stop SP measure
 				g_SP_config_command_rcvd =0 ;
+				//stop CA (calibration)
+				g_SP_config_command_rcvd = 0;
 
 			}
 
@@ -320,10 +330,21 @@ void system_state_update(){
 				g_SP_config_command_rcvd =1 ;
 				//stop EN command
 				g_EN_config_command_rcvd =0;
+				//stop CA (calibration)command
+				g_CA_config_command_rcvd = 0;
 
 			}
 
-			//extend to CA
+			//extend to CA command recieved
+			else if(g_system_config[2]=='C' && g_system_config[3] == 'A'){
+
+				g_CA_config_command_rcvd = 1;
+				// SP command
+				g_SP_config_command_rcvd =0 ;
+				//stop EN command
+				g_EN_config_command_rcvd =0;
+
+			}
 
 			else{
 				HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Invalid Command\n", 16);
@@ -334,6 +355,8 @@ void system_state_update(){
 		en_measurement_update() ;
 		//perform sp measurement
 		sp_measurement_update() ;
+		//perform calibration measurements
+		ca_measurements_update();
 	}
 	else{
 		//dont update any states while in the RTC menu
@@ -342,13 +365,58 @@ void system_state_update(){
 }
 
 /**
+ * This function begins the calibrations sequence
+ * It is to start the measurement for EN and SP where the values for lux is to be stored for later measurements
+ *
+ */
+
+void ca_measurements_update(){
+
+	// CA - update via push button
+	if(g_right_button_pressed  == 1 && g_CA_config_command_rcvd == 0){
+		g_right_button_pressed = 0;
+
+		g_CA_measure++  ;
+
+		if(g_CA_measure >2 ){
+			g_CA_measure = 1;
+		}
+	}
+
+	//CA update via UART
+	else if(g_right_button_pressed ==0  && g_CA_config_command_rcvd == 1){
+		g_CA_config_command_rcvd = 0;
+
+		//check that the correct UART message recvd
+		if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='C' && g_system_config[3] == 'A' && g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
+			if(g_CA_measure == 0){
+				g_CA_measure = 1;
+			}
+			else if(g_CA_measure == 1){
+				g_CA_measure = 2;
+
+			}
+			else{
+				if(g_CA_measure ==2){
+					g_CA_measure = 1;
+				}
+			}
+		}
+		//else block to not update g_EN_measure if incorrent command revcd
+		else{
+			g_CA_measure =  g_CA_measure ;
+		}
+	}
+
+}
+/**
  * This function start/stops the environment measurements
  * This is done by both the UART and push button
  */
 void en_measurement_update(){
 	// Environment Measure - And not measuring SP - modularise
 	// EN - update via push button
-	if(g_top_button_pressed  == 1 && g_EN_config_command_rcvd ==0 && g_SP_config_command_rcvd ==0 && (g_SP_measure == 0 || g_SP_measure ==2)){
+	if(g_top_button_pressed  == 1 && g_EN_config_command_rcvd ==0 && g_SP_config_command_rcvd ==0 && (g_SP_measure == 0 || g_SP_measure ==2)  && (g_CA_measure == 0 || g_CA_measure ==2)){
 		g_top_button_pressed = 0;
 
 		g_EN_measure++  ;
@@ -358,7 +426,7 @@ void en_measurement_update(){
 		}
 	}
 	//EN update via UART
-	else if(g_top_button_pressed ==0  && g_EN_config_command_rcvd == 1 && g_SP_config_command_rcvd ==0  && (g_SP_measure == 0 || g_SP_measure ==2)){
+	else if(g_top_button_pressed ==0  && g_EN_config_command_rcvd == 1 && g_SP_config_command_rcvd ==0  && (g_SP_measure == 0 || g_SP_measure ==2) ){
 		g_EN_config_command_rcvd = 0;
 
 		//check that the correct UART message recvd
@@ -496,6 +564,24 @@ void flash_led_d2(){
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET) ;
 		g_time_passed =  HAL_GetTick() ;
 		g_LED_D2_ON = 0;  //set D2 off
+
+	}
+
+}
+
+/**
+ * Function flashed LED D4 at specified interval of 200 ms
+ */
+void flash_led_d4(){
+	if(HAL_GetTick() - g_time_passed >= 200 && g_LED_D4_ON == 0){
+		g_LED_D4_ON = 1; // set D2 on
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET) ;
+
+	}
+	else if(HAL_GetTick() - g_time_passed >= 400 && g_LED_D4_ON == 1){
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET) ;
+		g_time_passed =  HAL_GetTick() ;
+		g_LED_D4_ON = 0;  //set D2 off
 
 	}
 
@@ -832,6 +918,19 @@ void sp_measurements_and_responses(){
 		  }
 	  }
 }
+
+void ca_measurements_and_responses(){
+	if(g_CA_measure == 1){ // find calibrated measurements
+
+
+
+		flash_led_d4() ;
+	}
+	else if(g_CA_measure == 2){
+		//calibration ended
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET) ;
+	}
+}
 /**
  * This function retrieves the ADC panel voltage,
  * across adc input 1
@@ -1023,12 +1122,12 @@ void change_lcd_display_mode(){
 	//check for LCD MODE 4 -> switch between the different display modes at interval of 2s
 	else if(display_result ==0 && g_lcd_mode == 4 ){
 		//change to default mode 1 in the beginning
-		if(default_switch_mode == 1){
-//			Lcd_clear(&lcd);
-//			lcd_Mode_1() ;
-
-			default_switch_mode = 0;
-		}
+//		if(default_switch_mode == 1){
+////			Lcd_clear(&lcd);
+////			lcd_Mode_1() ;
+//
+//			default_switch_mode = 0;
+//		}
 
 		change_between_dispplay_modes();
 	}
@@ -1042,14 +1141,12 @@ void change_between_dispplay_modes(){
 
 	if(HAL_GetTick()- time_passed_between_mode >= 2000 && display_mode_x == 1){
 		display_mode_x = 2 ;
-//		time_passed_between_mode = HAL_GetTick() ;
 		lcd_Mode_1() ;
 
 	}
 
 	else if(HAL_GetTick()- time_passed_between_mode >=4000 && display_mode_x == 2){
 		display_mode_x = 3 ;
-//		time_passed_between_mode = HAL_GetTick() ;
 		lcd_Mode_2();
 
 	}
@@ -1060,12 +1157,6 @@ void change_between_dispplay_modes(){
 		lcd_Mode_3() ;
 
 	}
-//
-//	if (HAL_GetTick()- time_passed_between_mode >6000){
-//		time_passed_between_mode = HAL_GetTick() ;
-//		display_mode_x = 1 ;
-//
-//	}
 
 }
 /**
@@ -1519,6 +1610,9 @@ int main(void)
 
 	  //UR2: PV Module -(Put in Function)/Modularize
 	  sp_measurements_and_responses();
+
+	  //UR5: Calibration of device
+	  ca_measurements_and_responses();
 
 	  //update LCD - code runs seqeuntionally and lcd updates based on variable states above
 	  change_lcd_display_mode();
