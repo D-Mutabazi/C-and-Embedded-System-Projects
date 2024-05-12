@@ -18,7 +18,7 @@
 				Lcd_cursor(&lcd, 0, 0) ;
 				Lcd_string(&lcd, g_date);
 
-				Lcd_cursor(&lcd, 1, 0) ;
+				Lcd_cursor(&lcd, 1, 0	) ;
 				Lcd_string(&lcd, g_time);
 
 

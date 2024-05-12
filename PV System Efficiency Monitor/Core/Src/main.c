@@ -210,6 +210,9 @@ uint16_t get_adc_value_conver_to_lux();
 uint16_t get_pv_panel_adc1_input();
 uint16_t get_pv_panel_adc2_input();
 void change_lcd_display_mode();
+void set_RTC_date_and_time();
+void en_measurement_update() ;
+void sp_measurement_update() ;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -284,10 +287,11 @@ void store_temp_in_string(uint16_t temperature, char temp[], int len){
 /**
  * This function will update the system state based on the received UART command
  * or top button press
+ * The system is not to be updates when performing a RTC update
  */
 void system_state_update(){
 
-	//CHECK FOR TYPE OF MEASUREMENT
+	//CHECK FOR TYPE OF MEASUREMENT command rcvd via UART
 	if( g_config_command_rcvd == 1){
 		g_config_command_rcvd = 0;
 
@@ -308,12 +312,27 @@ void system_state_update(){
 
 		}
 
+		//extend to CA
+
 		else{
 			HAL_UART_Transmit_IT(&huart2, (uint8_t*)"Invalid Command\n", 16);
 		}
 	}
 
-	// Environment Measure - And not measuring SP
+	//perform en measurements
+	en_measurement_update() ;
+	//perform sp measurement
+	sp_measurement_update() ;
+
+}
+
+/**
+ * This function start/stops the environment measurements
+ * This is done by both the UART and push button
+ */
+void en_measurement_update(){
+	// Environment Measure - And not measuring SP - modularise
+	// EN - update via push button
 	if(g_top_button_pressed  == 1 && g_EN_config_command_rcvd ==0 && g_SP_config_command_rcvd ==0 && (g_SP_measure == 0 || g_SP_measure ==2)){
 		g_top_button_pressed = 0;
 
@@ -323,10 +342,12 @@ void system_state_update(){
 			g_EN_measure = 1;
 		}
 	}
+	//EN update via UART
 	else if(g_top_button_pressed ==0  && g_EN_config_command_rcvd == 1 && g_SP_config_command_rcvd ==0  && (g_SP_measure == 0 || g_SP_measure ==2)){
 		g_EN_config_command_rcvd = 0;
 
-		if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='E' && g_system_config[3] == 'N' &&g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
+		//check that the correct UART message recvd
+		if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='E' && g_system_config[3] == 'N' && g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
 			if(g_EN_measure == 0){
 				g_EN_measure = 1;
 			}
@@ -346,45 +367,54 @@ void system_state_update(){
 		}
 	}
 
+}
 
-	//SP Measure
+/**
+ * This function start/stops the panel measurements
+ * This is done by both the UART and push button
+ */
+void sp_measurement_update(){
+	//SP Measure - update via bottom push button - modularise
 	if(g_bottom_button_pressed  == 1  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==0  && (g_EN_measure == 0 || g_EN_measure ==2)){
-			//clear lcd display after EN measurement
-			Lcd_clear(&lcd); //to remove EN measure values
-			g_bottom_button_pressed = 0;
+		//clear lcd display after EN measurement
+		Lcd_clear(&lcd); //to remove EN measure values
+		g_bottom_button_pressed = 0;
 
-			g_SP_measure++  ;
+		g_SP_measure++  ;
 
-			if(g_SP_measure >2 ){
+		if(g_SP_measure >2 ){
+			g_SP_measure = 1;
+		}
+	}
+
+	// SP update via uart
+	else if(g_bottom_button_pressed ==0  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==1 && (g_EN_measure == 0 || g_EN_measure ==2)){
+
+		//clear lcd display after EN measurement
+		Lcd_clear(&lcd); //to remove EN measure values
+
+		g_SP_config_command_rcvd = 0;
+
+		//check that the correct UART message recvd
+		if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='S' && g_system_config[3] == 'P' &&g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
+			if(g_SP_measure == 0){
 				g_SP_measure = 1;
 			}
-		}
-		else if(g_bottom_button_pressed ==0  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==1 && (g_EN_measure == 0 || g_EN_measure ==2)){
+			else if(g_SP_measure == 1){
+				g_SP_measure = 2;
 
-			//clear lcd display after EN measurement
-			Lcd_clear(&lcd); //to remove EN measure values
-
-			g_SP_config_command_rcvd = 0;
-
-			if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='S' && g_system_config[3] == 'P' &&g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
-				if(g_SP_measure == 0){
+			}
+			else{
+				if(g_SP_measure ==2){
 					g_SP_measure = 1;
 				}
-				else if(g_SP_measure == 1){
-					g_SP_measure = 2;
-
-				}
-				else{
-					if(g_SP_measure ==2){
-						g_SP_measure = 1;
-					}
-				}
-			}
-			//else block to not update g_EN_measure if incorrent command revcd
-			else{
-				g_SP_measure =  g_SP_measure ;
 			}
 		}
+		//else block to not update g_EN_measure if incorrent command revcd
+		else{
+			g_SP_measure =  g_SP_measure ;
+		}
+	}
 }
 
 /**
@@ -626,6 +656,7 @@ uint16_t get_adc_value_conver_to_lux(){
  */
 void en_measurements_and_responses(){
 
+
 	if(g_EN_measure == 1){
 
 	  // ignore bottom and left button press and SP command while measuring
@@ -641,7 +672,6 @@ void en_measurements_and_responses(){
 	  //PHOTODIOCE ouput
 	  g_get_lxd_value = get_adc_value_conver_to_lux();
 	  snprintf(g_lxd_value, sizeof(g_lxd_value), "%05d",g_get_lxd_value);
-//	  store_temp_in_string(g_get_lxd_value, g_lxd_value, 5);
 
 	  // DIGITAL SENSOR CALIBRATION
 	  g_lmt01_sens_temp =  (uint16_t)g_TO1_temp ;
@@ -772,6 +802,7 @@ void change_lcd_display_mode(){
 
 	}
 
+	//check for LCD MODE 4 -> switch between the different display modes at interval of 2s
 
 
 	//update state based on button press - DONT UPDATE ANYS STATES WHILE MEASURING
@@ -812,7 +843,6 @@ void change_lcd_display_mode(){
 	//otherwise dont update display maode
 	else{
 		g_lcd_mode = g_lcd_mode ;
-//		g_left_button_pressed = 0; //dont update left button press  (this is causing left button press not to be registered)
 	}
 
 	if(display_result == 1){
@@ -1157,9 +1187,10 @@ void RTC_date_and_time_update(uint8_t paramx){
 		if(paramx == 7){
 			g_update_RTC = 0 ; //done updating the RTC
 			//update date and time
-			HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) ;
-
-			HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+//			HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) ;
+//
+//			HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+			set_RTC_date_and_time() ;
 
 			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
 			snprintf(g_time, sizeof(g_time),"%02d:%02d:%02d",sTime.Hours, sTime.Minutes, sTime.Seconds);
@@ -1193,11 +1224,18 @@ void g_clock_menu_set_and_parameter_update(){
 			g_RTC_parameter = 1; //cycle back to first parameter
 		}
 
-
 	}
 
 	//update parameters
 
+}
+
+/**
+ * This function sets the updated time
+ */
+void set_RTC_date_and_time(){
+	HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) ;
+	HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) ;
 }
 /* USER CODE END 0 */
 
