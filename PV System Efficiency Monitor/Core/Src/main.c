@@ -920,8 +920,16 @@ void change_lcd_display_mode(){
 
 	//check for LCD MODE 4 -> switch between the different display modes at interval of 2s
 
-	//dont change lcd modes when measuring the
-	lcd_display_mode_change_on_button_press() ;
+	//dont change lcd modes when updating the RTC
+	if(g_update_RTC ==0){
+		lcd_display_mode_change_on_button_press() ;
+
+	}
+	else{
+		if(g_left_button_pressed == 1){
+			g_left_button_pressed = 0 ; //if left button pressed when updating the RTC parameteers
+		}
+	}
 
 
 	if(display_result == 1){
@@ -1321,9 +1329,6 @@ void RTC_date_and_time_update(uint8_t paramx){
 		if(paramx == 7){
 			g_update_RTC = 0 ; //done updating the RTC
 			//update date and time
-//			HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) ;
-//
-//			HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
 			set_RTC_date_and_time() ;
 
 			snprintf(g_date, sizeof(g_date),"%02d/%02d/20%02d",sDate.Date, sDate.Month,sDate.Year);
