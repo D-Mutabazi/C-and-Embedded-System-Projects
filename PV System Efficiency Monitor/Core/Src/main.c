@@ -378,10 +378,10 @@ void ca_measurements_update(){
 	if(g_right_button_pressed  == 1 && g_CA_config_command_rcvd == 0  && g_EN_config_command_rcvd == 0 && g_SP_config_command_rcvd ==0 && (g_SP_measure == 0 || g_SP_measure ==2) && (g_EN_measure == 0 || g_EN_measure ==2)){
 		g_right_button_pressed = 0;
 
-//		g_CA_measure++  ;
+		g_CA_measure++  ;
 
 		if(g_CA_measure != 1 ){
-			cal_en_or_sp_measurement = 0; //set flag to 0 on every button press
+//			cal_en_or_sp_measurement = 0; //set flag to 0 on every button press
 			g_CA_measure = 1;
 		}
 		else{
@@ -395,23 +395,23 @@ void ca_measurements_update(){
 
 		//check that the correct UART message recvd
 		if(g_system_config[0]== '&' && g_system_config[1 ]== '_' && g_system_config[2]=='C' && g_system_config[3] == 'A' && g_system_config[4] =='_'&& g_system_config[5] =='*' &&  g_system_config[6] =='\n' ){
-//			if(g_CA_measure == 0){
-//				g_CA_measure = 1;
-//			}
-//			else if(g_CA_measure == 1){
-//				g_CA_measure = g_CA_measure ;
-//
-//			}
-//			else{
-//				if(g_CA_measure == 2){
-//					g_CA_measure = 1;
-//				}
-//			}
-
-			if(g_CA_measure != 1){
-				cal_en_or_sp_measurement = 0; //set flag to 0 on every button press to start in the beginning
+			if(g_CA_measure == 0){
 				g_CA_measure = 1;
 			}
+			else if(g_CA_measure == 1){
+				g_CA_measure = g_CA_measure ;
+
+			}
+			else{
+				if(g_CA_measure == 2){
+					g_CA_measure = 1;
+				}
+			}
+//
+//			if(g_CA_measure != 1){
+//				cal_en_or_sp_measurement = 0; //set flag to 0 on every button press to start in the beginning
+//				g_CA_measure = 1;
+//			}
 		}
 		//else block to not update g_EN_measure if incorrent command revcd
 		else{
@@ -583,17 +583,24 @@ void flash_led_d2(){
 /**
  * Function flashed LED D4 at specified interval of 200 ms
  */
+uint32_t d4_toggle_time = 0;
+//uint8_t d5_led_entered
 void flash_led_d4(){
-	if(HAL_GetTick() - g_time_passed >= 200 && g_LED_D4_ON == 0){
-		g_LED_D4_ON = 1; // set D2 on
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET) ;
+//	if(HAL_GetTick() - g_time_passed >= 200 && g_LED_D4_ON == 0){
+//		g_LED_D4_ON = 1; // set D2 on
+//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET) ;
+//
+//	}
+//	else if(HAL_GetTick() - g_time_passed >= 400 && g_LED_D4_ON == 1){
+//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET) ;
+//		g_time_passed =  HAL_GetTick() ;
+//		g_LED_D4_ON = 0;  //set D2 off
+//
+//	}
 
-	}
-	else if(HAL_GetTick() - g_time_passed >= 400 && g_LED_D4_ON == 1){
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET) ;
-		g_time_passed =  HAL_GetTick() ;
-		g_LED_D4_ON = 0;  //set D2 off
-
+	if(HAL_GetTick() - d4_toggle_time > 200){
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_10);
+		d4_toggle_time =  HAL_GetTick();
 	}
 
 }
@@ -940,29 +947,15 @@ uint16_t calibrated_power = 0;
 
 void ca_measurements_and_responses(){
 
-//	//PERFORM CHECK FOR 4/5s switching - begginning
-//	if(HAL_GetTick() - g_time_passed  >=4000 && cal_en_or_sp_measurement == 0){
-//		cal_en_or_sp_measurement = 1 ;
-//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET) ;
-//
-//	}
-//	else if(HAL_GetTick() - g_time_passed >=8000 && cal_en_or_sp_measurement == 1){
-//		cal_en_or_sp_measurement  =0;
-//		g_time_passed = HAL_GetTick();
-//		//EXIT CALIBRATION - after 8 seconds
-////		g_CA_measure = 2;
-//
-//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET) ;
-//
-//
-//	}
-
 	if(g_CA_measure == 1){ // find calibrated measurements
 		if(cal_entered == 1){
 			cal_entered = 0 ;
 			calibration_time_passed =  HAL_GetTick() ;
 			g_time_passed = HAL_GetTick() ;
 		}
+
+		flash_led_d4() ;
+
 
 		if(HAL_GetTick() - calibration_time_passed <3000){
 			g_EN_measure =1;
@@ -984,42 +977,17 @@ void ca_measurements_and_responses(){
 		}
 
 		else if(HAL_GetTick() - calibration_time_passed > 8000){
-			cal_entered  =0;
+			cal_entered  =1;
 			calibrated_lux  =g_get_lxd_value ;
 			calibrated_power = g_p_mpp ;
 
+			calibration_time_passed =  HAL_GetTick() ;
+
 			if(g_CA_measure == 1){
-				g_CA_measure = 0;
+				g_CA_measure = 2;
 			}
 		}
-//		//PERFORM CHECK FOR 4/5s switching - begginning
-//		if(HAL_GetTick() - calibration_time_passed  >=4000 && cal_en_or_sp_measurement == 0){
-//			cal_en_or_sp_measurement = 1 ;
-////			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET) ;
-//
-//		}
-//		else if(HAL_GetTick() - calibration_time_passed >=8000 && cal_en_or_sp_measurement == 1){
-//			cal_en_or_sp_measurement  =0;
-//			calibration_time_passed = HAL_GetTick();
-//			//EXIT CALIBRATION - after 8 seconds
-//				g_CA_measure = 2;
-//
-////			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET) ;
 
-
-//		}
-
-//		//first 4 seconds
-//		if(cal_en_or_sp_measurement == 0){
-////			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET) ;
-//
-//		}
-//		//second 4 seconds
-//		else if(cal_en_or_sp_measurement == 1){
-////			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET) ;
-//
-//		}
-		flash_led_d4() ;
 	}
 	//calibration ended - after 8s
 	else if(g_CA_measure == 2){
