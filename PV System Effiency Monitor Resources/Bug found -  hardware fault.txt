@@ -100,8 +100,6 @@ uint16_t g_prev_p_pv = 0; //PV power mW
 uint16_t g_v_mpp = 0; //PV voltage mpp
 uint16_t g_i_mpp = 0; //PV current mpp
 uint16_t g_p_mpp = 0; //PV power mpp
-uint16_t g_p_mpp_calibrated = 0; // calibrated PV power mpp
-
 
 uint8_t g_pv_eff = 0 ; //PV panel eff. %
 
@@ -109,7 +107,7 @@ uint8_t g_pv_eff = 0 ; //PV panel eff. %
 uint16_t g_PV_vol1 = 0;
 uint16_t g_v_oc_pv = 0;
 uint16_t g_prev_v_pv = 0;
-uint16_t prev_panel_current = 0;
+
 
 uint16_t g_PV_vol2 = 0;
 
@@ -159,7 +157,7 @@ uint8_t g_SP_measure_LCD_diplay= 0;
 uint8_t g_LED_D2_ON  =0 ;   // LED D2 state initially off
 uint8_t g_SP_config_command_rcvd = 0;
 
-// CA (calibration)*******************
+// CA (calibration)
 uint8_t g_CA_config_command_rcvd = 0;
 uint8_t g_LED_D4_ON  =0 ;   // LED D2 state initially off
 uint8_t g_CA_measure= 0;
@@ -167,12 +165,12 @@ uint8_t g_CA_measure= 0;
 uint32_t calibration_time_passed = 0;
 uint8_t cal_en_or_sp_measurement =  0;
 
-
+//calibration state variavles
 uint8_t cal_entered = 1;
-uint16_t lux_at_calibration = 0;
+uint16_t calibrated_lux = 0;
 uint16_t calibrated_power = 0;
-uint16_t panel_temp_at_calibration = 0;
-//******************
+
+
 char system_state_transmit[19] = {} ;
 char system_state_SP_transmit[22] = {} ;
 
@@ -238,7 +236,7 @@ void lcd_Mode_2() ;
 void lcd_Mode_3();
 void change_between_dispplay_modes() ;
 void ca_measurements_update();
-uint16_t get_calibrated_power(uint16_t lux_measured, uint16_t panel_temper, uint16_t p_measured) ;
+uint16_t get_calibrated_power(uint16_t lux_measured, uint16_t panel_temper, uint16_t p_measured);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -872,39 +870,42 @@ void sp_measurements_and_responses(){
 		  g_v_oc_pv = g_PV_vol1 ;
 		}
 
+		uint16_t prev_curent =  0 ;
+
 		//curent measure - Isc, Ipv
-//		if(g_PV_vol1 - g_PV_vol2 >0){
-//			g_i_pv = g_PV_vol1 - g_PV_vol2 ;
-//		}
-//		else{
-//			g_i_pv = g_i_pv ; //dont update current
-//		}
-
-
-
 		if(g_PV_vol1 - g_PV_vol2 >0){
-			if((g_PV_vol1 - g_PV_vol2) - prev_panel_current <30 ){
+			if((g_PV_vol1 - g_PV_vol2) - prev_curent <30 ){
 				g_i_pv = g_PV_vol1 - g_PV_vol2 ;
 
-				prev_panel_current = g_i_pv ;
+				prev_curent = g_i_pv ;
 			}
 		}
 		else{
 			g_i_pv = g_i_pv ; //dont update current
 		}
-		//power measure - multiply by 1000, to get result in mW
-		g_p_pv = ( (g_PV_vol1 * g_i_pv)/1000000.0) *1000;
 
+		//power measure - multiply by 1000, to get result in mW
+//		if(g_i_pv - prev_curent <30 ){
+//			g_i_pv = g_PV_vol1 - g_PV_vol2 ;
+//
+//			prev_curent = g_i_pv ;
+//		}
+//		g_p_pv = ( (g_PV_vol1 * g_i_pv)/1000000.0) *1000;
+
+		g_p_pv = (g_PV_vol1 * g_i_pv)/100 ;
+//		//calibrate the power recvd (with panel temp and using calibrated lux)
+//		g_p_pv  = get_calibrated_power(g_get_lxd_value, g_lmt01_sens_temp, g_p_pv);
 
 		/*mpp values measure using power -Pmpp, Vmpp, Impp*/
 		//check is power increasing
 		if(g_p_pv > g_prev_p_pv ){
-			//calibrate measured power
-			g_p_mpp = g_p_pv ;
-//			g_p_mpp =  get_calibrated_power(g_get_lxd_value, g_lmt01_sens_temp, g_p_pv) ; //calibrated power
-
+//			g_p_mpp = g_p_pv ;
+			//calibrate the power recvd (with panel temp and using calibrated lux)
+			g_p_mpp  = get_calibrated_power(g_get_lxd_value, g_lmt01_sens_temp, g_p_pv);
 			g_v_mpp = g_PV_vol1 ;
 			g_i_mpp = g_i_pv ;
+
+			g_pv_eff = (g_p_mpp/calibrated_power)*100 ;
 			g_prev_p_pv = g_p_pv ;
 		}
 
@@ -925,7 +926,7 @@ void sp_measurements_and_responses(){
 
 			//2nd row
 			Lcd_cursor(&lcd, 1, 0) ;
-			snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_mpp, g_pv_eff);
+			snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_pv, g_pv_eff);
 			Lcd_string(&lcd, g_panel_power_and_efficiency);
 
 			g_previous_time_of_lcd = HAL_GetTick() ;
@@ -965,6 +966,8 @@ void sp_measurements_and_responses(){
  * Function gets the EN and SP measurements
  */
 
+
+
 void ca_measurements_and_responses(){
 
 	if(g_CA_measure == 1){ // find calibrated measurements
@@ -998,14 +1001,10 @@ void ca_measurements_and_responses(){
 
 		else if(HAL_GetTick() - calibration_time_passed > 8000){
 			cal_entered  =1;
-			panel_temp_at_calibration = g_lmt01_sens_temp ; //panel temperature
 
-//			calibrated_lux  =g_get_lxd_value ; //lux at calibration
-			lux_at_calibration = g_get_lxd_value ;
+			calibrated_lux  =g_get_lxd_value ;  //lux at calibration
 
-			calibrated_power = g_p_mpp ;
-
-			calibrated_power = calibrated_power/(1+(-0.004)*(panel_temp_at_calibration -25)) ; //Calibrated Power
+			calibrated_power = g_p_mpp/(1+(-0.004)*(g_lmt01_sens_temp -25)) ; //Calibrated Power
 
 			calibration_time_passed =  HAL_GetTick() ;
 
@@ -1635,7 +1634,12 @@ void set_RTC_date_and_time(){
 	HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) ;
 	HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) ;
 }
+/* USER CODE END 0 */
 
+/**
+ * This function returns the calibrated power
+ *
+ */
 uint16_t get_calibrated_power(uint16_t lux_measured, uint16_t panel_temper, uint16_t p_measured){
 	float P_norm_T =  0 ;
 	uint16_t P_normalised = 0;
@@ -1644,12 +1648,10 @@ uint16_t get_calibrated_power(uint16_t lux_measured, uint16_t panel_temper, uint
 	P_norm_T =  p_measured/(1+(-0.004)*(panel_temper - 25.0)) ;
 
 	//Normalise with respect to lux (at calibration)
-	P_normalised =  P_norm_T*(lux_at_calibration/lux_measured) ;
+	P_normalised =  P_norm_T*(calibrated_lux/lux_measured) ;
 
 	return P_normalised ;
 }
-/* USER CODE END 0 */
-
 /**
   * @brief  The application entry point.
   * @retval int
