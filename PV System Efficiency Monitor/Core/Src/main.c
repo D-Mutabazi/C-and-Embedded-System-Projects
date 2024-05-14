@@ -167,7 +167,8 @@ uint8_t g_CA_measure= 0;
 
 uint32_t calibration_time_passed = 0;
 uint8_t cal_en_or_sp_measurement =  0;
-
+uint8_t sweep_through_IV_curve_during_calibration = 0;
+uint32_t sweeping_through_IV_during_calibration_time =0;
 
 uint8_t cal_entered = 1;
 uint16_t lux_at_calibration = 0;
@@ -849,7 +850,7 @@ void en_measurements_and_responses(){
  */
 
 uint32_t previous_dutycyle_reference_point = 0;
-uint8_t start_sweeping_IV_curve =1;
+uint8_t start_sweeping_IV_curve_during_PV_measurement =1;
 uint8_t CCR_value = 0;
 uint8_t continue_increasing_dutycyle =1;
 void sp_measurements_and_responses(){
@@ -862,24 +863,23 @@ void sp_measurements_and_responses(){
 			  g_left_button_pressed = 0;
 		  }
 
-		  if(start_sweeping_IV_curve ==1){
+		  if(start_sweeping_IV_curve_during_PV_measurement ==1){
 			  previous_dutycyle_reference_point = HAL_GetTick();
-			  start_sweeping_IV_curve = 0;
+			  start_sweeping_IV_curve_during_PV_measurement = 0;
 		  }
 
-		  //sweep through IV curve every 100ms
-		  if(HAL_GetTick() -previous_dutycyle_reference_point >=1000 && continue_increasing_dutycyle == 1){
+		  //sweep through IV curve every 3ms - to account for 3 second SP calibration
+		  if(HAL_GetTick() -previous_dutycyle_reference_point >=3 && continue_increasing_dutycyle == 1){
 			  CCR_value = TIM5->CCR2 ;
 			  TIM5->CCR2++;
 			  //check for overflow
 			  if(TIM5->CCR2 > 100 ){
 				  continue_increasing_dutycyle = 0;
 				  TIM5->CCR2 = 0;
+				  CCR_value =0;
 			  }
 			  previous_dutycyle_reference_point  = HAL_GetTick();
 		  }
-
-
 
 		//reprime state transmission
 		if(g_transmit_SP_system_state == 0){
@@ -953,7 +953,7 @@ void sp_measurements_and_responses(){
 		  g_SP_measure_LCD_diplay =  1;
 		  g_EN_measure_LCD_display = 0; //dont diplay EN measurements
 
-		  start_sweeping_IV_curve =1;
+		  start_sweeping_IV_curve_during_PV_measurement =1;
 		  TIM5->CCR2 = 0; //Re-start with duty cycle of 0
 		  continue_increasing_dutycyle = 1;
 
@@ -998,6 +998,9 @@ void ca_measurements_and_responses(){
 		else if((HAL_GetTick() - calibration_time_passed > 4000) && (HAL_GetTick() - calibration_time_passed< 7000)){
 			g_SP_measure =1;
 
+			//sweep through IV curve even faster during the calibration SEQUENCE
+			sweep_through_IV_curve_during_calibration = 1;
+
 		}
 
 		else if((HAL_GetTick() - calibration_time_passed > 7000) && (HAL_GetTick() - calibration_time_passed< 8000) && g_SP_measure == 1){
@@ -1009,6 +1012,8 @@ void ca_measurements_and_responses(){
 		else if(HAL_GetTick() - calibration_time_passed > 8000){
 			cal_entered  =1;
 			panel_temp_at_calibration = g_lmt01_sens_temp ; //panel temperature
+
+			sweep_through_IV_curve_during_calibration =0;
 
 //			calibrated_lux  =g_get_lxd_value ; //lux at calibration
 			lux_at_calibration = g_get_lxd_value ;
@@ -1222,13 +1227,6 @@ void change_lcd_display_mode(){
 	//check for LCD MODE 4 -> switch between the different display modes at interval of 2s
 	else if(display_result ==0 && g_lcd_mode == 4 ){
 		//change to default mode 1 in the beginning
-//		if(default_switch_mode == 1){
-////			Lcd_clear(&lcd);
-////			lcd_Mode_1() ;
-//
-//			default_switch_mode = 0;
-//		}
-
 		change_between_dispplay_modes();
 	}
 
