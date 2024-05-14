@@ -847,15 +847,39 @@ void en_measurements_and_responses(){
  * It measures the PV voltage, PV current, PV power and PV efficiency,
  * Measurements and responses, transmitted to UART and LCD
  */
+
+uint32_t previous_dutycyle_reference_point = 0;
+uint8_t start_sweeping_IV_curve =1;
+uint8_t CCR_value = 0;
+uint8_t continue_increasing_dutycyle =1;
 void sp_measurements_and_responses(){
 	  if(g_SP_measure == 1){
 
-		// ignore top button and left button press and EN command while measuring
-		if(g_top_button_pressed ==1 || g_EN_config_command_rcvd ==1 || g_left_button_pressed ==1){
-		  g_top_button_pressed = 0 ;
-		  g_EN_config_command_rcvd = 0;
-		  g_left_button_pressed = 0;
-		}
+		  // ignore top button and left button press and EN command while measuring
+		  if(g_top_button_pressed ==1 || g_EN_config_command_rcvd ==1 || g_left_button_pressed ==1){
+			  g_top_button_pressed = 0 ;
+			  g_EN_config_command_rcvd = 0;
+			  g_left_button_pressed = 0;
+		  }
+
+		  if(start_sweeping_IV_curve ==1){
+			  previous_dutycyle_reference_point = HAL_GetTick();
+			  start_sweeping_IV_curve = 0;
+		  }
+
+		  //sweep through IV curve every 100ms
+		  if(HAL_GetTick() -previous_dutycyle_reference_point >=1000 && continue_increasing_dutycyle == 1){
+			  CCR_value = TIM5->CCR2 ;
+			  TIM5->CCR2++;
+			  //check for overflow
+			  if(TIM5->CCR2 > 100 ){
+				  continue_increasing_dutycyle = 0;
+				  TIM5->CCR2 = 0;
+			  }
+			  previous_dutycyle_reference_point  = HAL_GetTick();
+		  }
+
+
 
 		//reprime state transmission
 		if(g_transmit_SP_system_state == 0){
@@ -873,15 +897,6 @@ void sp_measurements_and_responses(){
 		  //capture maximum open circuit voltage
 		  g_v_oc_pv = g_PV_vol1 ;
 		}
-
-		//curent measure - Isc, Ipv
-//		if(g_PV_vol1 - g_PV_vol2 >0){
-//			g_i_pv = g_PV_vol1 - g_PV_vol2 ;
-//		}
-//		else{
-//			g_i_pv = g_i_pv ; //dont update current
-//		}
-
 
 
 		if(g_PV_vol1 - g_PV_vol2 >0){
@@ -905,7 +920,7 @@ void sp_measurements_and_responses(){
 			g_p_mpp = g_p_pv ;
 //			g_p_mpp =  get_calibrated_power(g_get_lxd_value, g_lmt01_sens_temp, g_p_pv) ; //calibrated power
 
-			g_p_mpp_calibrated =( g_p_mpp/(1+(-.004)*(g_lmt01_sens_temp-25)))*lux_at_calibration/g_get_lxd_value ;
+//			g_p_mpp_calibrated =( g_p_mpp/(1+(-.004)*(g_lmt01_sens_temp-25)))*lux_at_calibration/g_get_lxd_value ;
 			g_v_mpp = g_PV_vol1 ;
 			g_i_mpp = g_i_pv ;
 			g_pv_eff = (calibrated_power/g_p_mpp_calibrated)*100 ;
@@ -924,7 +939,7 @@ void sp_measurements_and_responses(){
 
 		//2nd row
 		Lcd_cursor(&lcd, 1, 0) ;
-		snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03.0fmW E:%03.0f%%",g_p_mpp_calibrated, g_pv_eff);
+		snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03.0fmW E:%03.0f%%",g_p_mpp, g_pv_eff);
 		Lcd_string(&lcd, g_panel_power_and_efficiency);
 
 		//Flash D2 LED
@@ -935,12 +950,12 @@ void sp_measurements_and_responses(){
 		  //enter this state once
 		  g_SP_measure = 0;
 
-		  //clear lcd
-//		  Lcd_clear(&lcd);
-		  //update LCD mode to SP measurements
-
 		  g_SP_measure_LCD_diplay =  1;
 		  g_EN_measure_LCD_display = 0; //dont diplay EN measurements
+
+		  start_sweeping_IV_curve =1;
+		  TIM5->CCR2 = 0; //Re-start with duty cycle of 0
+		  continue_increasing_dutycyle = 1;
 
 		  //set LED D2
 		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET) ;
@@ -1643,6 +1658,8 @@ uint16_t get_calibrated_power(uint16_t lux_measured, uint16_t panel_temper, uint
 
 	return P_normalised ;
 }
+
+
 /* USER CODE END 0 */
 
 /**
@@ -1695,6 +1712,11 @@ int main(void)
 
   lcd = Lcd_create(ports, pins, GPIOB, GPIO_PIN_14, GPIOB, GPIO_PIN_2, LCD_4_BIT_MODE);
   Lcd_clear(&lcd);
+
+  //PWM signal start -BJT
+  HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
+  TIM5->CCR2 = 0; //start with duty cycle of 0
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -2040,7 +2062,7 @@ static void MX_TIM5_Init(void)
   htim5.Instance = TIM5;
   htim5.Init.Prescaler = 33;
   htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim5.Init.Period = 4294967295;
+  htim5.Init.Period = 100;
   htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
