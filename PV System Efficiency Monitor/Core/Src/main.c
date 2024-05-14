@@ -1456,7 +1456,7 @@ void RTC_date_and_time_update(uint8_t paramx){
 			sTime.Hours++ ;
 
 			//oveflow
-			if(sTime.Hours > 24){
+			if(sTime.Hours > 23){
 				sTime.Hours = 1 ;
 			}
 
@@ -1502,7 +1502,7 @@ void RTC_date_and_time_update(uint8_t paramx){
 			sTime.Minutes++ ;
 
 			//oveflow
-			if(sTime.Minutes > 60){
+			if(sTime.Minutes > 59){
 				sTime.Minutes = 1 ;
 			}
 
@@ -1547,7 +1547,7 @@ void RTC_date_and_time_update(uint8_t paramx){
 			sTime.Seconds++ ;
 
 			//oveflow
-			if(sTime.Seconds > 60){
+			if(sTime.Seconds > 59){
 				sTime.Seconds = 1 ;
 			}
 
