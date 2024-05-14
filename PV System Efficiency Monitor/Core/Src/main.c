@@ -94,16 +94,16 @@ uint16_t g_i_sc_pv = 0; //PV current mA
 uint16_t g_prev_i_pv = 0; //PV current mA
 uint16_t g_limiting_current= 0 ; //to avoid over or underflow as a result of the fluctuating voltages v1, v2 becuase of the small
 
-uint16_t g_p_pv = 0; //PV power mW
-uint16_t g_prev_p_pv = 0; //PV power mW
+float g_p_pv = 0; //PV power mW
+float g_prev_p_pv = 0; //PV power mW
 
 uint16_t g_v_mpp = 0; //PV voltage mpp
 uint16_t g_i_mpp = 0; //PV current mpp
-uint16_t g_p_mpp = 0; //PV power mpp
-uint16_t g_p_mpp_calibrated = 0; // calibrated PV power mpp
+float g_p_mpp = 0; //PV power mpp
+float g_p_mpp_calibrated = 0; // calibrated PV power mpp
 
 
-uint8_t g_pv_eff = 0 ; //PV panel eff. %
+float g_pv_eff = 0 ; //PV panel eff. %
 
 //voltages (mv) from ADC conversion
 uint16_t g_PV_vol1 = 0;
@@ -170,7 +170,7 @@ uint8_t cal_en_or_sp_measurement =  0;
 
 uint8_t cal_entered = 1;
 uint16_t lux_at_calibration = 0;
-uint16_t calibrated_power = 0;
+float calibrated_power = 0;
 uint16_t panel_temp_at_calibration = 0;
 //******************
 char system_state_transmit[19] = {} ;
@@ -903,34 +903,27 @@ void sp_measurements_and_responses(){
 			g_p_mpp = g_p_pv ;
 //			g_p_mpp =  get_calibrated_power(g_get_lxd_value, g_lmt01_sens_temp, g_p_pv) ; //calibrated power
 
+			g_p_mpp_calibrated =( g_p_mpp/(1+(-.004)*(g_lmt01_sens_temp-25)))*lux_at_calibration/g_get_lxd_value ;
 			g_v_mpp = g_PV_vol1 ;
 			g_i_mpp = g_i_pv ;
+			g_pv_eff = (calibrated_power/g_p_mpp_calibrated)*100 ;
 			g_prev_p_pv = g_p_pv ;
 		}
-
 
 		if(clear_lcd_display == 1){
 			clear_lcd_display = 0;
 			Lcd_clear(&lcd);
 		}
 		//LCD write - real-time measured Vpv (mV), Ipv (mA), Ppv (mW), Peff = 0 while measuring
-		//few commands - (have 2 write commands, and reduce rate of sampling/real time value display)
+		//write to lcd - //row 1
+		Lcd_cursor(&lcd, 0, 0) ;
+		snprintf(g_panel_voltage_and_current, sizeof(g_panel_voltage_and_current),"V:%04dmV I:%03dmA",g_PV_vol1,g_i_pv);
+		Lcd_string(&lcd, g_panel_voltage_and_current);
 
-		//update valus only every 30ms
-		if(HAL_GetTick() - g_previous_time_of_lcd >=30){
-			//write to lcd - //row 1
-			Lcd_cursor(&lcd, 0, 0) ;
-			snprintf(g_panel_voltage_and_current, sizeof(g_panel_voltage_and_current),"V:%04dmV I:%03dmA",g_PV_vol1,g_i_pv);
-			Lcd_string(&lcd, g_panel_voltage_and_current);
-
-			//2nd row
-			Lcd_cursor(&lcd, 1, 0) ;
-			snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_mpp, g_pv_eff);
-			Lcd_string(&lcd, g_panel_power_and_efficiency);
-
-			g_previous_time_of_lcd = HAL_GetTick() ;
-		}
-
+		//2nd row
+		Lcd_cursor(&lcd, 1, 0) ;
+		snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03.0fmW E:%03.0f%%",g_p_mpp_calibrated, g_pv_eff);
+		Lcd_string(&lcd, g_panel_power_and_efficiency);
 
 		//Flash D2 LED
 		flash_led_d2() ;
@@ -949,7 +942,7 @@ void sp_measurements_and_responses(){
 
 		  //set LED D2
 		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET) ;
-		  snprintf(system_state_SP_transmit,sizeof(system_state_SP_transmit), "&_%04d_%03d_%03d_%03d_*\n",g_v_mpp,g_i_mpp,g_p_mpp,g_pv_eff);
+		  snprintf(system_state_SP_transmit,sizeof(system_state_SP_transmit), "&_%04d_%03d_%03.0f_%03.0f_*\n",g_v_mpp,g_i_mpp,g_p_mpp,g_pv_eff);
 		  //transmit system SP response
 		  if(g_transmit_SP_system_state == 1){
 
@@ -1087,7 +1080,7 @@ void lcd_Mode_1(){
 
 	//2nd row
 	Lcd_cursor(&lcd, 1, 0) ;
-	snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_mpp, g_pv_eff);
+	snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03.0fmW E:%03.0f%%",g_p_mpp, g_pv_eff);
 	Lcd_string(&lcd, g_panel_power_and_efficiency);
 
 }
@@ -1155,7 +1148,7 @@ void change_lcd_display_mode(){
 
 		//2nd row
 		Lcd_cursor(&lcd, 1, 0) ;
-		snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03dmW E:%03d%%",g_p_mpp, g_pv_eff);
+		snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03.0fmW E:%03.0f%%",g_p_mpp, g_pv_eff);
 		Lcd_string(&lcd, g_panel_power_and_efficiency);
 
 		//get default date and time
