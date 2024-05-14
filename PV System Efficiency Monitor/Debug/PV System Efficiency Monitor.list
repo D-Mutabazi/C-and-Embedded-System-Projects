@@ -37,13 +37,13 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_macro  000199e8  00000000  00000000  000371d0  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   00013870  00000000  00000000  00050bb8  2**0
+ 17 .debug_line   00013865  00000000  00000000  00050bb8  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000a2922  00000000  00000000  00064428  2**0
+ 18 .debug_str    000a2922  00000000  00000000  0006441d  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000050  00000000  00000000  00106d4a  2**0
+ 19 .comment      00000050  00000000  00000000  00106d3f  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  00005a98  00000000  00000000  00106d9c  2**2
+ 20 .debug_frame  00005a98  00000000  00000000  00106d90  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -3605,306 +3605,305 @@ void sp_measurements_and_responses(){
  8001e1a:	701a      	strb	r2, [r3, #0]
 		  }
 
-		  //sweep through IV curve every 100ms
-		  if(HAL_GetTick() -previous_dutycyle_reference_point >=1000 && continue_increasing_dutycyle == 1){
+		  //sweep through IV curve every 3ms - to account for 3 second SP calibration
+		  if(HAL_GetTick() -previous_dutycyle_reference_point >=30 && continue_increasing_dutycyle == 1){
  8001e1c:	f002 fa16 	bl	800424c <HAL_GetTick>
  8001e20:	4602      	mov	r2, r0
  8001e22:	4b82      	ldr	r3, [pc, #520]	; (800202c <sp_measurements_and_responses+0x264>)
  8001e24:	681b      	ldr	r3, [r3, #0]
  8001e26:	1ad3      	subs	r3, r2, r3
- 8001e28:	f5b3 7f7a 	cmp.w	r3, #1000	; 0x3e8
- 8001e2c:	d31e      	bcc.n	8001e6c <sp_measurements_and_responses+0xa4>
- 8001e2e:	4b80      	ldr	r3, [pc, #512]	; (8002030 <sp_measurements_and_responses+0x268>)
- 8001e30:	781b      	ldrb	r3, [r3, #0]
- 8001e32:	2b01      	cmp	r3, #1
- 8001e34:	d11a      	bne.n	8001e6c <sp_measurements_and_responses+0xa4>
+ 8001e28:	2b1d      	cmp	r3, #29
+ 8001e2a:	d91c      	bls.n	8001e66 <sp_measurements_and_responses+0x9e>
+ 8001e2c:	4b80      	ldr	r3, [pc, #512]	; (8002030 <sp_measurements_and_responses+0x268>)
+ 8001e2e:	781b      	ldrb	r3, [r3, #0]
+ 8001e30:	2b01      	cmp	r3, #1
+ 8001e32:	d118      	bne.n	8001e66 <sp_measurements_and_responses+0x9e>
 			  CCR_value = TIM5->CCR2 ;
- 8001e36:	4b7f      	ldr	r3, [pc, #508]	; (8002034 <sp_measurements_and_responses+0x26c>)
- 8001e38:	6b9b      	ldr	r3, [r3, #56]	; 0x38
- 8001e3a:	b2da      	uxtb	r2, r3
- 8001e3c:	4b7e      	ldr	r3, [pc, #504]	; (8002038 <sp_measurements_and_responses+0x270>)
- 8001e3e:	701a      	strb	r2, [r3, #0]
-			  TIM5->CCR2++;
- 8001e40:	4b7c      	ldr	r3, [pc, #496]	; (8002034 <sp_measurements_and_responses+0x26c>)
- 8001e42:	6b9a      	ldr	r2, [r3, #56]	; 0x38
- 8001e44:	3201      	adds	r2, #1
- 8001e46:	639a      	str	r2, [r3, #56]	; 0x38
+ 8001e34:	4b7f      	ldr	r3, [pc, #508]	; (8002034 <sp_measurements_and_responses+0x26c>)
+ 8001e36:	6b9b      	ldr	r3, [r3, #56]	; 0x38
+ 8001e38:	b2da      	uxtb	r2, r3
+ 8001e3a:	4b7f      	ldr	r3, [pc, #508]	; (8002038 <sp_measurements_and_responses+0x270>)
+ 8001e3c:	701a      	strb	r2, [r3, #0]
+			  TIM5->CCR2+=3;
+ 8001e3e:	4b7d      	ldr	r3, [pc, #500]	; (8002034 <sp_measurements_and_responses+0x26c>)
+ 8001e40:	6b9b      	ldr	r3, [r3, #56]	; 0x38
+ 8001e42:	4a7c      	ldr	r2, [pc, #496]	; (8002034 <sp_measurements_and_responses+0x26c>)
+ 8001e44:	3303      	adds	r3, #3
+ 8001e46:	6393      	str	r3, [r2, #56]	; 0x38
 			  //check for overflow
 			  if(TIM5->CCR2 > 100 ){
  8001e48:	4b7a      	ldr	r3, [pc, #488]	; (8002034 <sp_measurements_and_responses+0x26c>)
  8001e4a:	6b9b      	ldr	r3, [r3, #56]	; 0x38
  8001e4c:	2b64      	cmp	r3, #100	; 0x64
- 8001e4e:	d908      	bls.n	8001e62 <sp_measurements_and_responses+0x9a>
+ 8001e4e:	d905      	bls.n	8001e5c <sp_measurements_and_responses+0x94>
 				  continue_increasing_dutycyle = 0;
  8001e50:	4b77      	ldr	r3, [pc, #476]	; (8002030 <sp_measurements_and_responses+0x268>)
  8001e52:	2200      	movs	r2, #0
  8001e54:	701a      	strb	r2, [r3, #0]
-				  TIM5->CCR2 = 0;
- 8001e56:	4b77      	ldr	r3, [pc, #476]	; (8002034 <sp_measurements_and_responses+0x26c>)
- 8001e58:	2200      	movs	r2, #0
- 8001e5a:	639a      	str	r2, [r3, #56]	; 0x38
+
+//				  TIM5->CCR2 = 0;
 				  CCR_value =0;
- 8001e5c:	4b76      	ldr	r3, [pc, #472]	; (8002038 <sp_measurements_and_responses+0x270>)
- 8001e5e:	2200      	movs	r2, #0
- 8001e60:	701a      	strb	r2, [r3, #0]
+ 8001e56:	4b78      	ldr	r3, [pc, #480]	; (8002038 <sp_measurements_and_responses+0x270>)
+ 8001e58:	2200      	movs	r2, #0
+ 8001e5a:	701a      	strb	r2, [r3, #0]
 			  }
 			  previous_dutycyle_reference_point  = HAL_GetTick();
- 8001e62:	f002 f9f3 	bl	800424c <HAL_GetTick>
- 8001e66:	4603      	mov	r3, r0
- 8001e68:	4a70      	ldr	r2, [pc, #448]	; (800202c <sp_measurements_and_responses+0x264>)
- 8001e6a:	6013      	str	r3, [r2, #0]
+ 8001e5c:	f002 f9f6 	bl	800424c <HAL_GetTick>
+ 8001e60:	4603      	mov	r3, r0
+ 8001e62:	4a72      	ldr	r2, [pc, #456]	; (800202c <sp_measurements_and_responses+0x264>)
+ 8001e64:	6013      	str	r3, [r2, #0]
 		  }
-
-
 
 		//reprime state transmission
 		if(g_transmit_SP_system_state == 0){
- 8001e6c:	4b73      	ldr	r3, [pc, #460]	; (800203c <sp_measurements_and_responses+0x274>)
- 8001e6e:	781b      	ldrb	r3, [r3, #0]
- 8001e70:	2b00      	cmp	r3, #0
- 8001e72:	d102      	bne.n	8001e7a <sp_measurements_and_responses+0xb2>
+ 8001e66:	4b75      	ldr	r3, [pc, #468]	; (800203c <sp_measurements_and_responses+0x274>)
+ 8001e68:	781b      	ldrb	r3, [r3, #0]
+ 8001e6a:	2b00      	cmp	r3, #0
+ 8001e6c:	d102      	bne.n	8001e74 <sp_measurements_and_responses+0xac>
 			g_transmit_SP_system_state = 1;
- 8001e74:	4b71      	ldr	r3, [pc, #452]	; (800203c <sp_measurements_and_responses+0x274>)
- 8001e76:	2201      	movs	r2, #1
- 8001e78:	701a      	strb	r2, [r3, #0]
+ 8001e6e:	4b73      	ldr	r3, [pc, #460]	; (800203c <sp_measurements_and_responses+0x274>)
+ 8001e70:	2201      	movs	r2, #1
+ 8001e72:	701a      	strb	r2, [r3, #0]
 		}
 		//PV panel data points measure
 		g_PV_vol1 = get_pv_panel_adc2_input() ; //Voc = Vsp
- 8001e7a:	f000 fad1 	bl	8002420 <get_pv_panel_adc2_input>
- 8001e7e:	4603      	mov	r3, r0
- 8001e80:	461a      	mov	r2, r3
- 8001e82:	4b6f      	ldr	r3, [pc, #444]	; (8002040 <sp_measurements_and_responses+0x278>)
- 8001e84:	801a      	strh	r2, [r3, #0]
+ 8001e74:	f000 fad4 	bl	8002420 <get_pv_panel_adc2_input>
+ 8001e78:	4603      	mov	r3, r0
+ 8001e7a:	461a      	mov	r2, r3
+ 8001e7c:	4b70      	ldr	r3, [pc, #448]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001e7e:	801a      	strh	r2, [r3, #0]
 		//*ADC input(2) Vb = V_var
 		g_PV_vol2= get_pv_panel_adc1_input() ;
- 8001e86:	f000 fa6b 	bl	8002360 <get_pv_panel_adc1_input>
- 8001e8a:	4603      	mov	r3, r0
- 8001e8c:	461a      	mov	r2, r3
- 8001e8e:	4b6d      	ldr	r3, [pc, #436]	; (8002044 <sp_measurements_and_responses+0x27c>)
- 8001e90:	801a      	strh	r2, [r3, #0]
+ 8001e80:	f000 fa6e 	bl	8002360 <get_pv_panel_adc1_input>
+ 8001e84:	4603      	mov	r3, r0
+ 8001e86:	461a      	mov	r2, r3
+ 8001e88:	4b6e      	ldr	r3, [pc, #440]	; (8002044 <sp_measurements_and_responses+0x27c>)
+ 8001e8a:	801a      	strh	r2, [r3, #0]
 
 		//GET VALUES
 		//Voc measure - Voc, vpv
 		if(g_PV_vol1 > g_prev_v_pv){
- 8001e92:	4b6b      	ldr	r3, [pc, #428]	; (8002040 <sp_measurements_and_responses+0x278>)
- 8001e94:	881a      	ldrh	r2, [r3, #0]
- 8001e96:	4b6c      	ldr	r3, [pc, #432]	; (8002048 <sp_measurements_and_responses+0x280>)
- 8001e98:	881b      	ldrh	r3, [r3, #0]
- 8001e9a:	429a      	cmp	r2, r3
- 8001e9c:	d907      	bls.n	8001eae <sp_measurements_and_responses+0xe6>
+ 8001e8c:	4b6c      	ldr	r3, [pc, #432]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001e8e:	881a      	ldrh	r2, [r3, #0]
+ 8001e90:	4b6d      	ldr	r3, [pc, #436]	; (8002048 <sp_measurements_and_responses+0x280>)
+ 8001e92:	881b      	ldrh	r3, [r3, #0]
+ 8001e94:	429a      	cmp	r2, r3
+ 8001e96:	d907      	bls.n	8001ea8 <sp_measurements_and_responses+0xe0>
 		  g_prev_v_pv = g_PV_vol1 ;
- 8001e9e:	4b68      	ldr	r3, [pc, #416]	; (8002040 <sp_measurements_and_responses+0x278>)
- 8001ea0:	881a      	ldrh	r2, [r3, #0]
- 8001ea2:	4b69      	ldr	r3, [pc, #420]	; (8002048 <sp_measurements_and_responses+0x280>)
- 8001ea4:	801a      	strh	r2, [r3, #0]
+ 8001e98:	4b69      	ldr	r3, [pc, #420]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001e9a:	881a      	ldrh	r2, [r3, #0]
+ 8001e9c:	4b6a      	ldr	r3, [pc, #424]	; (8002048 <sp_measurements_and_responses+0x280>)
+ 8001e9e:	801a      	strh	r2, [r3, #0]
 		  //capture maximum open circuit voltage
 		  g_v_oc_pv = g_PV_vol1 ;
- 8001ea6:	4b66      	ldr	r3, [pc, #408]	; (8002040 <sp_measurements_and_responses+0x278>)
- 8001ea8:	881a      	ldrh	r2, [r3, #0]
- 8001eaa:	4b68      	ldr	r3, [pc, #416]	; (800204c <sp_measurements_and_responses+0x284>)
- 8001eac:	801a      	strh	r2, [r3, #0]
+ 8001ea0:	4b67      	ldr	r3, [pc, #412]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001ea2:	881a      	ldrh	r2, [r3, #0]
+ 8001ea4:	4b69      	ldr	r3, [pc, #420]	; (800204c <sp_measurements_and_responses+0x284>)
+ 8001ea6:	801a      	strh	r2, [r3, #0]
 		}
 
 
 		if(g_PV_vol1 - g_PV_vol2 >0){
- 8001eae:	4b64      	ldr	r3, [pc, #400]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001ea8:	4b65      	ldr	r3, [pc, #404]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001eaa:	881b      	ldrh	r3, [r3, #0]
+ 8001eac:	461a      	mov	r2, r3
+ 8001eae:	4b65      	ldr	r3, [pc, #404]	; (8002044 <sp_measurements_and_responses+0x27c>)
  8001eb0:	881b      	ldrh	r3, [r3, #0]
- 8001eb2:	461a      	mov	r2, r3
- 8001eb4:	4b63      	ldr	r3, [pc, #396]	; (8002044 <sp_measurements_and_responses+0x27c>)
- 8001eb6:	881b      	ldrh	r3, [r3, #0]
- 8001eb8:	1ad3      	subs	r3, r2, r3
- 8001eba:	2b00      	cmp	r3, #0
- 8001ebc:	dd17      	ble.n	8001eee <sp_measurements_and_responses+0x126>
+ 8001eb2:	1ad3      	subs	r3, r2, r3
+ 8001eb4:	2b00      	cmp	r3, #0
+ 8001eb6:	dd17      	ble.n	8001ee8 <sp_measurements_and_responses+0x120>
 			if((g_PV_vol1 - g_PV_vol2) - prev_panel_current <30 ){
- 8001ebe:	4b60      	ldr	r3, [pc, #384]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001eb8:	4b61      	ldr	r3, [pc, #388]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001eba:	881b      	ldrh	r3, [r3, #0]
+ 8001ebc:	461a      	mov	r2, r3
+ 8001ebe:	4b61      	ldr	r3, [pc, #388]	; (8002044 <sp_measurements_and_responses+0x27c>)
  8001ec0:	881b      	ldrh	r3, [r3, #0]
- 8001ec2:	461a      	mov	r2, r3
- 8001ec4:	4b5f      	ldr	r3, [pc, #380]	; (8002044 <sp_measurements_and_responses+0x27c>)
- 8001ec6:	881b      	ldrh	r3, [r3, #0]
- 8001ec8:	1ad3      	subs	r3, r2, r3
- 8001eca:	4a61      	ldr	r2, [pc, #388]	; (8002050 <sp_measurements_and_responses+0x288>)
- 8001ecc:	8812      	ldrh	r2, [r2, #0]
- 8001ece:	1a9b      	subs	r3, r3, r2
- 8001ed0:	2b1d      	cmp	r3, #29
- 8001ed2:	dc10      	bgt.n	8001ef6 <sp_measurements_and_responses+0x12e>
+ 8001ec2:	1ad3      	subs	r3, r2, r3
+ 8001ec4:	4a62      	ldr	r2, [pc, #392]	; (8002050 <sp_measurements_and_responses+0x288>)
+ 8001ec6:	8812      	ldrh	r2, [r2, #0]
+ 8001ec8:	1a9b      	subs	r3, r3, r2
+ 8001eca:	2b1d      	cmp	r3, #29
+ 8001ecc:	dc10      	bgt.n	8001ef0 <sp_measurements_and_responses+0x128>
 				g_i_pv = g_PV_vol1 - g_PV_vol2 ;
- 8001ed4:	4b5a      	ldr	r3, [pc, #360]	; (8002040 <sp_measurements_and_responses+0x278>)
- 8001ed6:	881a      	ldrh	r2, [r3, #0]
- 8001ed8:	4b5a      	ldr	r3, [pc, #360]	; (8002044 <sp_measurements_and_responses+0x27c>)
- 8001eda:	881b      	ldrh	r3, [r3, #0]
- 8001edc:	1ad3      	subs	r3, r2, r3
- 8001ede:	b29a      	uxth	r2, r3
- 8001ee0:	4b5c      	ldr	r3, [pc, #368]	; (8002054 <sp_measurements_and_responses+0x28c>)
- 8001ee2:	801a      	strh	r2, [r3, #0]
+ 8001ece:	4b5c      	ldr	r3, [pc, #368]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001ed0:	881a      	ldrh	r2, [r3, #0]
+ 8001ed2:	4b5c      	ldr	r3, [pc, #368]	; (8002044 <sp_measurements_and_responses+0x27c>)
+ 8001ed4:	881b      	ldrh	r3, [r3, #0]
+ 8001ed6:	1ad3      	subs	r3, r2, r3
+ 8001ed8:	b29a      	uxth	r2, r3
+ 8001eda:	4b5e      	ldr	r3, [pc, #376]	; (8002054 <sp_measurements_and_responses+0x28c>)
+ 8001edc:	801a      	strh	r2, [r3, #0]
 
 				prev_panel_current = g_i_pv ;
- 8001ee4:	4b5b      	ldr	r3, [pc, #364]	; (8002054 <sp_measurements_and_responses+0x28c>)
- 8001ee6:	881a      	ldrh	r2, [r3, #0]
- 8001ee8:	4b59      	ldr	r3, [pc, #356]	; (8002050 <sp_measurements_and_responses+0x288>)
- 8001eea:	801a      	strh	r2, [r3, #0]
- 8001eec:	e003      	b.n	8001ef6 <sp_measurements_and_responses+0x12e>
+ 8001ede:	4b5d      	ldr	r3, [pc, #372]	; (8002054 <sp_measurements_and_responses+0x28c>)
+ 8001ee0:	881a      	ldrh	r2, [r3, #0]
+ 8001ee2:	4b5b      	ldr	r3, [pc, #364]	; (8002050 <sp_measurements_and_responses+0x288>)
+ 8001ee4:	801a      	strh	r2, [r3, #0]
+ 8001ee6:	e003      	b.n	8001ef0 <sp_measurements_and_responses+0x128>
 			}
 		}
 		else{
 			g_i_pv = g_i_pv ; //dont update current
- 8001eee:	4b59      	ldr	r3, [pc, #356]	; (8002054 <sp_measurements_and_responses+0x28c>)
- 8001ef0:	881a      	ldrh	r2, [r3, #0]
- 8001ef2:	4b58      	ldr	r3, [pc, #352]	; (8002054 <sp_measurements_and_responses+0x28c>)
- 8001ef4:	801a      	strh	r2, [r3, #0]
+ 8001ee8:	4b5a      	ldr	r3, [pc, #360]	; (8002054 <sp_measurements_and_responses+0x28c>)
+ 8001eea:	881a      	ldrh	r2, [r3, #0]
+ 8001eec:	4b59      	ldr	r3, [pc, #356]	; (8002054 <sp_measurements_and_responses+0x28c>)
+ 8001eee:	801a      	strh	r2, [r3, #0]
 		}
 		//power measure - multiply by 1000, to get result in mW
 		g_p_pv = ( (g_PV_vol1 * g_i_pv)/1000000.0) *1000;
- 8001ef6:	4b52      	ldr	r3, [pc, #328]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001ef0:	4b53      	ldr	r3, [pc, #332]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001ef2:	881b      	ldrh	r3, [r3, #0]
+ 8001ef4:	461a      	mov	r2, r3
+ 8001ef6:	4b57      	ldr	r3, [pc, #348]	; (8002054 <sp_measurements_and_responses+0x28c>)
  8001ef8:	881b      	ldrh	r3, [r3, #0]
- 8001efa:	461a      	mov	r2, r3
- 8001efc:	4b55      	ldr	r3, [pc, #340]	; (8002054 <sp_measurements_and_responses+0x28c>)
- 8001efe:	881b      	ldrh	r3, [r3, #0]
- 8001f00:	fb02 f303 	mul.w	r3, r2, r3
- 8001f04:	4618      	mov	r0, r3
- 8001f06:	f7fe fb15 	bl	8000534 <__aeabi_i2d>
- 8001f0a:	a341      	add	r3, pc, #260	; (adr r3, 8002010 <sp_measurements_and_responses+0x248>)
- 8001f0c:	e9d3 2300 	ldrd	r2, r3, [r3]
- 8001f10:	f7fe fca4 	bl	800085c <__aeabi_ddiv>
- 8001f14:	4602      	mov	r2, r0
- 8001f16:	460b      	mov	r3, r1
- 8001f18:	4610      	mov	r0, r2
- 8001f1a:	4619      	mov	r1, r3
- 8001f1c:	f04f 0200 	mov.w	r2, #0
- 8001f20:	4b4d      	ldr	r3, [pc, #308]	; (8002058 <sp_measurements_and_responses+0x290>)
- 8001f22:	f7fe fb71 	bl	8000608 <__aeabi_dmul>
- 8001f26:	4602      	mov	r2, r0
- 8001f28:	460b      	mov	r3, r1
- 8001f2a:	4610      	mov	r0, r2
- 8001f2c:	4619      	mov	r1, r3
- 8001f2e:	f7fe fe63 	bl	8000bf8 <__aeabi_d2f>
- 8001f32:	4603      	mov	r3, r0
- 8001f34:	4a49      	ldr	r2, [pc, #292]	; (800205c <sp_measurements_and_responses+0x294>)
- 8001f36:	6013      	str	r3, [r2, #0]
+ 8001efa:	fb02 f303 	mul.w	r3, r2, r3
+ 8001efe:	4618      	mov	r0, r3
+ 8001f00:	f7fe fb18 	bl	8000534 <__aeabi_i2d>
+ 8001f04:	a342      	add	r3, pc, #264	; (adr r3, 8002010 <sp_measurements_and_responses+0x248>)
+ 8001f06:	e9d3 2300 	ldrd	r2, r3, [r3]
+ 8001f0a:	f7fe fca7 	bl	800085c <__aeabi_ddiv>
+ 8001f0e:	4602      	mov	r2, r0
+ 8001f10:	460b      	mov	r3, r1
+ 8001f12:	4610      	mov	r0, r2
+ 8001f14:	4619      	mov	r1, r3
+ 8001f16:	f04f 0200 	mov.w	r2, #0
+ 8001f1a:	4b4f      	ldr	r3, [pc, #316]	; (8002058 <sp_measurements_and_responses+0x290>)
+ 8001f1c:	f7fe fb74 	bl	8000608 <__aeabi_dmul>
+ 8001f20:	4602      	mov	r2, r0
+ 8001f22:	460b      	mov	r3, r1
+ 8001f24:	4610      	mov	r0, r2
+ 8001f26:	4619      	mov	r1, r3
+ 8001f28:	f7fe fe66 	bl	8000bf8 <__aeabi_d2f>
+ 8001f2c:	4603      	mov	r3, r0
+ 8001f2e:	4a4b      	ldr	r2, [pc, #300]	; (800205c <sp_measurements_and_responses+0x294>)
+ 8001f30:	6013      	str	r3, [r2, #0]
 
 
 		/*mpp values measure using power -Pmpp, Vmpp, Impp*/
 		//check is power increasing
 		if(g_p_pv > g_prev_p_pv ){
- 8001f38:	4b48      	ldr	r3, [pc, #288]	; (800205c <sp_measurements_and_responses+0x294>)
- 8001f3a:	ed93 7a00 	vldr	s14, [r3]
- 8001f3e:	4b48      	ldr	r3, [pc, #288]	; (8002060 <sp_measurements_and_responses+0x298>)
- 8001f40:	edd3 7a00 	vldr	s15, [r3]
- 8001f44:	eeb4 7ae7 	vcmpe.f32	s14, s15
- 8001f48:	eef1 fa10 	vmrs	APSR_nzcv, fpscr
- 8001f4c:	dd1e      	ble.n	8001f8c <sp_measurements_and_responses+0x1c4>
+ 8001f32:	4b4a      	ldr	r3, [pc, #296]	; (800205c <sp_measurements_and_responses+0x294>)
+ 8001f34:	ed93 7a00 	vldr	s14, [r3]
+ 8001f38:	4b49      	ldr	r3, [pc, #292]	; (8002060 <sp_measurements_and_responses+0x298>)
+ 8001f3a:	edd3 7a00 	vldr	s15, [r3]
+ 8001f3e:	eeb4 7ae7 	vcmpe.f32	s14, s15
+ 8001f42:	eef1 fa10 	vmrs	APSR_nzcv, fpscr
+ 8001f46:	dd1e      	ble.n	8001f86 <sp_measurements_and_responses+0x1be>
 			//calibrate measured power
 			g_p_mpp = g_p_pv ;
- 8001f4e:	4b43      	ldr	r3, [pc, #268]	; (800205c <sp_measurements_and_responses+0x294>)
- 8001f50:	681b      	ldr	r3, [r3, #0]
- 8001f52:	4a44      	ldr	r2, [pc, #272]	; (8002064 <sp_measurements_and_responses+0x29c>)
- 8001f54:	6013      	str	r3, [r2, #0]
+ 8001f48:	4b44      	ldr	r3, [pc, #272]	; (800205c <sp_measurements_and_responses+0x294>)
+ 8001f4a:	681b      	ldr	r3, [r3, #0]
+ 8001f4c:	4a45      	ldr	r2, [pc, #276]	; (8002064 <sp_measurements_and_responses+0x29c>)
+ 8001f4e:	6013      	str	r3, [r2, #0]
 //			g_p_mpp =  get_calibrated_power(g_get_lxd_value, g_lmt01_sens_temp, g_p_pv) ; //calibrated power
 
 //			g_p_mpp_calibrated =( g_p_mpp/(1+(-.004)*(g_lmt01_sens_temp-25)))*lux_at_calibration/g_get_lxd_value ;
 			g_v_mpp = g_PV_vol1 ;
- 8001f56:	4b3a      	ldr	r3, [pc, #232]	; (8002040 <sp_measurements_and_responses+0x278>)
- 8001f58:	881a      	ldrh	r2, [r3, #0]
- 8001f5a:	4b43      	ldr	r3, [pc, #268]	; (8002068 <sp_measurements_and_responses+0x2a0>)
- 8001f5c:	801a      	strh	r2, [r3, #0]
+ 8001f50:	4b3b      	ldr	r3, [pc, #236]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001f52:	881a      	ldrh	r2, [r3, #0]
+ 8001f54:	4b44      	ldr	r3, [pc, #272]	; (8002068 <sp_measurements_and_responses+0x2a0>)
+ 8001f56:	801a      	strh	r2, [r3, #0]
 			g_i_mpp = g_i_pv ;
- 8001f5e:	4b3d      	ldr	r3, [pc, #244]	; (8002054 <sp_measurements_and_responses+0x28c>)
- 8001f60:	881a      	ldrh	r2, [r3, #0]
- 8001f62:	4b42      	ldr	r3, [pc, #264]	; (800206c <sp_measurements_and_responses+0x2a4>)
- 8001f64:	801a      	strh	r2, [r3, #0]
+ 8001f58:	4b3e      	ldr	r3, [pc, #248]	; (8002054 <sp_measurements_and_responses+0x28c>)
+ 8001f5a:	881a      	ldrh	r2, [r3, #0]
+ 8001f5c:	4b43      	ldr	r3, [pc, #268]	; (800206c <sp_measurements_and_responses+0x2a4>)
+ 8001f5e:	801a      	strh	r2, [r3, #0]
 			g_pv_eff = (calibrated_power/g_p_mpp_calibrated)*100 ;
- 8001f66:	4b42      	ldr	r3, [pc, #264]	; (8002070 <sp_measurements_and_responses+0x2a8>)
- 8001f68:	edd3 6a00 	vldr	s13, [r3]
- 8001f6c:	4b41      	ldr	r3, [pc, #260]	; (8002074 <sp_measurements_and_responses+0x2ac>)
- 8001f6e:	ed93 7a00 	vldr	s14, [r3]
- 8001f72:	eec6 7a87 	vdiv.f32	s15, s13, s14
- 8001f76:	ed9f 7a40 	vldr	s14, [pc, #256]	; 8002078 <sp_measurements_and_responses+0x2b0>
- 8001f7a:	ee67 7a87 	vmul.f32	s15, s15, s14
- 8001f7e:	4b3f      	ldr	r3, [pc, #252]	; (800207c <sp_measurements_and_responses+0x2b4>)
- 8001f80:	edc3 7a00 	vstr	s15, [r3]
+ 8001f60:	4b43      	ldr	r3, [pc, #268]	; (8002070 <sp_measurements_and_responses+0x2a8>)
+ 8001f62:	edd3 6a00 	vldr	s13, [r3]
+ 8001f66:	4b43      	ldr	r3, [pc, #268]	; (8002074 <sp_measurements_and_responses+0x2ac>)
+ 8001f68:	ed93 7a00 	vldr	s14, [r3]
+ 8001f6c:	eec6 7a87 	vdiv.f32	s15, s13, s14
+ 8001f70:	ed9f 7a41 	vldr	s14, [pc, #260]	; 8002078 <sp_measurements_and_responses+0x2b0>
+ 8001f74:	ee67 7a87 	vmul.f32	s15, s15, s14
+ 8001f78:	4b40      	ldr	r3, [pc, #256]	; (800207c <sp_measurements_and_responses+0x2b4>)
+ 8001f7a:	edc3 7a00 	vstr	s15, [r3]
 			g_prev_p_pv = g_p_pv ;
- 8001f84:	4b35      	ldr	r3, [pc, #212]	; (800205c <sp_measurements_and_responses+0x294>)
- 8001f86:	681b      	ldr	r3, [r3, #0]
- 8001f88:	4a35      	ldr	r2, [pc, #212]	; (8002060 <sp_measurements_and_responses+0x298>)
- 8001f8a:	6013      	str	r3, [r2, #0]
+ 8001f7e:	4b37      	ldr	r3, [pc, #220]	; (800205c <sp_measurements_and_responses+0x294>)
+ 8001f80:	681b      	ldr	r3, [r3, #0]
+ 8001f82:	4a37      	ldr	r2, [pc, #220]	; (8002060 <sp_measurements_and_responses+0x298>)
+ 8001f84:	6013      	str	r3, [r2, #0]
 		}
 
 		if(clear_lcd_display == 1){
- 8001f8c:	4b3c      	ldr	r3, [pc, #240]	; (8002080 <sp_measurements_and_responses+0x2b8>)
- 8001f8e:	781b      	ldrb	r3, [r3, #0]
- 8001f90:	2b01      	cmp	r3, #1
- 8001f92:	d105      	bne.n	8001fa0 <sp_measurements_and_responses+0x1d8>
+ 8001f86:	4b3e      	ldr	r3, [pc, #248]	; (8002080 <sp_measurements_and_responses+0x2b8>)
+ 8001f88:	781b      	ldrb	r3, [r3, #0]
+ 8001f8a:	2b01      	cmp	r3, #1
+ 8001f8c:	d105      	bne.n	8001f9a <sp_measurements_and_responses+0x1d2>
 			clear_lcd_display = 0;
- 8001f94:	4b3a      	ldr	r3, [pc, #232]	; (8002080 <sp_measurements_and_responses+0x2b8>)
- 8001f96:	2200      	movs	r2, #0
- 8001f98:	701a      	strb	r2, [r3, #0]
+ 8001f8e:	4b3c      	ldr	r3, [pc, #240]	; (8002080 <sp_measurements_and_responses+0x2b8>)
+ 8001f90:	2200      	movs	r2, #0
+ 8001f92:	701a      	strb	r2, [r3, #0]
 			Lcd_clear(&lcd);
- 8001f9a:	483a      	ldr	r0, [pc, #232]	; (8002084 <sp_measurements_and_responses+0x2bc>)
- 8001f9c:	f7ff f88c 	bl	80010b8 <Lcd_clear>
+ 8001f94:	483b      	ldr	r0, [pc, #236]	; (8002084 <sp_measurements_and_responses+0x2bc>)
+ 8001f96:	f7ff f88f 	bl	80010b8 <Lcd_clear>
 		}
 		//LCD write - real-time measured Vpv (mV), Ipv (mA), Ppv (mW), Peff = 0 while measuring
 		//write to lcd - //row 1
 		Lcd_cursor(&lcd, 0, 0) ;
- 8001fa0:	2200      	movs	r2, #0
- 8001fa2:	2100      	movs	r1, #0
- 8001fa4:	4837      	ldr	r0, [pc, #220]	; (8002084 <sp_measurements_and_responses+0x2bc>)
- 8001fa6:	f7ff f86d 	bl	8001084 <Lcd_cursor>
+ 8001f9a:	2200      	movs	r2, #0
+ 8001f9c:	2100      	movs	r1, #0
+ 8001f9e:	4839      	ldr	r0, [pc, #228]	; (8002084 <sp_measurements_and_responses+0x2bc>)
+ 8001fa0:	f7ff f870 	bl	8001084 <Lcd_cursor>
 		snprintf(g_panel_voltage_and_current, sizeof(g_panel_voltage_and_current),"V:%04dmV I:%03dmA",g_PV_vol1,g_i_pv);
- 8001faa:	4b25      	ldr	r3, [pc, #148]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001fa4:	4b26      	ldr	r3, [pc, #152]	; (8002040 <sp_measurements_and_responses+0x278>)
+ 8001fa6:	881b      	ldrh	r3, [r3, #0]
+ 8001fa8:	461a      	mov	r2, r3
+ 8001faa:	4b2a      	ldr	r3, [pc, #168]	; (8002054 <sp_measurements_and_responses+0x28c>)
  8001fac:	881b      	ldrh	r3, [r3, #0]
- 8001fae:	461a      	mov	r2, r3
- 8001fb0:	4b28      	ldr	r3, [pc, #160]	; (8002054 <sp_measurements_and_responses+0x28c>)
- 8001fb2:	881b      	ldrh	r3, [r3, #0]
- 8001fb4:	9300      	str	r3, [sp, #0]
- 8001fb6:	4613      	mov	r3, r2
- 8001fb8:	4a33      	ldr	r2, [pc, #204]	; (8002088 <sp_measurements_and_responses+0x2c0>)
- 8001fba:	2111      	movs	r1, #17
- 8001fbc:	4833      	ldr	r0, [pc, #204]	; (800208c <sp_measurements_and_responses+0x2c4>)
- 8001fbe:	f007 f86b 	bl	8009098 <sniprintf>
+ 8001fae:	9300      	str	r3, [sp, #0]
+ 8001fb0:	4613      	mov	r3, r2
+ 8001fb2:	4a35      	ldr	r2, [pc, #212]	; (8002088 <sp_measurements_and_responses+0x2c0>)
+ 8001fb4:	2111      	movs	r1, #17
+ 8001fb6:	4835      	ldr	r0, [pc, #212]	; (800208c <sp_measurements_and_responses+0x2c4>)
+ 8001fb8:	f007 f86e 	bl	8009098 <sniprintf>
 		Lcd_string(&lcd, g_panel_voltage_and_current);
- 8001fc2:	4932      	ldr	r1, [pc, #200]	; (800208c <sp_measurements_and_responses+0x2c4>)
- 8001fc4:	482f      	ldr	r0, [pc, #188]	; (8002084 <sp_measurements_and_responses+0x2bc>)
- 8001fc6:	f7ff f83d 	bl	8001044 <Lcd_string>
+ 8001fbc:	4933      	ldr	r1, [pc, #204]	; (800208c <sp_measurements_and_responses+0x2c4>)
+ 8001fbe:	4831      	ldr	r0, [pc, #196]	; (8002084 <sp_measurements_and_responses+0x2bc>)
+ 8001fc0:	f7ff f840 	bl	8001044 <Lcd_string>
 
 		//2nd row
 		Lcd_cursor(&lcd, 1, 0) ;
- 8001fca:	2200      	movs	r2, #0
- 8001fcc:	2101      	movs	r1, #1
- 8001fce:	482d      	ldr	r0, [pc, #180]	; (8002084 <sp_measurements_and_responses+0x2bc>)
- 8001fd0:	f7ff f858 	bl	8001084 <Lcd_cursor>
+ 8001fc4:	2200      	movs	r2, #0
+ 8001fc6:	2101      	movs	r1, #1
+ 8001fc8:	482e      	ldr	r0, [pc, #184]	; (8002084 <sp_measurements_and_responses+0x2bc>)
+ 8001fca:	f7ff f85b 	bl	8001084 <Lcd_cursor>
 		snprintf(g_panel_power_and_efficiency, sizeof(g_panel_power_and_efficiency),"P: %03.0fmW E:%03.0f%%",g_p_mpp, g_pv_eff);
- 8001fd4:	4b23      	ldr	r3, [pc, #140]	; (8002064 <sp_measurements_and_responses+0x29c>)
- 8001fd6:	681b      	ldr	r3, [r3, #0]
- 8001fd8:	4618      	mov	r0, r3
- 8001fda:	f7fe fabd 	bl	8000558 <__aeabi_f2d>
- 8001fde:	4604      	mov	r4, r0
- 8001fe0:	460d      	mov	r5, r1
- 8001fe2:	4b26      	ldr	r3, [pc, #152]	; (800207c <sp_measurements_and_responses+0x2b4>)
- 8001fe4:	681b      	ldr	r3, [r3, #0]
- 8001fe6:	4618      	mov	r0, r3
- 8001fe8:	f7fe fab6 	bl	8000558 <__aeabi_f2d>
- 8001fec:	4602      	mov	r2, r0
- 8001fee:	460b      	mov	r3, r1
- 8001ff0:	e9cd 2302 	strd	r2, r3, [sp, #8]
- 8001ff4:	e9cd 4500 	strd	r4, r5, [sp]
- 8001ff8:	4a25      	ldr	r2, [pc, #148]	; (8002090 <sp_measurements_and_responses+0x2c8>)
- 8001ffa:	2111      	movs	r1, #17
- 8001ffc:	4825      	ldr	r0, [pc, #148]	; (8002094 <sp_measurements_and_responses+0x2cc>)
- 8001ffe:	f007 f84b 	bl	8009098 <sniprintf>
+ 8001fce:	4b25      	ldr	r3, [pc, #148]	; (8002064 <sp_measurements_and_responses+0x29c>)
+ 8001fd0:	681b      	ldr	r3, [r3, #0]
+ 8001fd2:	4618      	mov	r0, r3
+ 8001fd4:	f7fe fac0 	bl	8000558 <__aeabi_f2d>
+ 8001fd8:	4604      	mov	r4, r0
+ 8001fda:	460d      	mov	r5, r1
+ 8001fdc:	4b27      	ldr	r3, [pc, #156]	; (800207c <sp_measurements_and_responses+0x2b4>)
+ 8001fde:	681b      	ldr	r3, [r3, #0]
+ 8001fe0:	4618      	mov	r0, r3
+ 8001fe2:	f7fe fab9 	bl	8000558 <__aeabi_f2d>
+ 8001fe6:	4602      	mov	r2, r0
+ 8001fe8:	460b      	mov	r3, r1
+ 8001fea:	e9cd 2302 	strd	r2, r3, [sp, #8]
+ 8001fee:	e9cd 4500 	strd	r4, r5, [sp]
+ 8001ff2:	4a27      	ldr	r2, [pc, #156]	; (8002090 <sp_measurements_and_responses+0x2c8>)
+ 8001ff4:	2111      	movs	r1, #17
+ 8001ff6:	4827      	ldr	r0, [pc, #156]	; (8002094 <sp_measurements_and_responses+0x2cc>)
+ 8001ff8:	f007 f84e 	bl	8009098 <sniprintf>
 		Lcd_string(&lcd, g_panel_power_and_efficiency);
- 8002002:	4924      	ldr	r1, [pc, #144]	; (8002094 <sp_measurements_and_responses+0x2cc>)
- 8002004:	481f      	ldr	r0, [pc, #124]	; (8002084 <sp_measurements_and_responses+0x2bc>)
- 8002006:	f7ff f81d 	bl	8001044 <Lcd_string>
+ 8001ffc:	4925      	ldr	r1, [pc, #148]	; (8002094 <sp_measurements_and_responses+0x2cc>)
+ 8001ffe:	4821      	ldr	r0, [pc, #132]	; (8002084 <sp_measurements_and_responses+0x2bc>)
+ 8002000:	f7ff f820 	bl	8001044 <Lcd_string>
 
 		//Flash D2 LED
 		flash_led_d2() ;
- 800200a:	f7ff fcf5 	bl	80019f8 <flash_led_d2>
+ 8002004:	f7ff fcf8 	bl	80019f8 <flash_led_d2>
 			  //transmit over UART
 			  HAL_UART_Transmit_IT(&huart2,(uint8_t*)system_state_SP_transmit, 21) ;
 
 		  }
 	  }
 }
- 800200e:	e089      	b.n	8002124 <sp_measurements_and_responses+0x35c>
+ 8002008:	e08c      	b.n	8002124 <sp_measurements_and_responses+0x35c>
+ 800200a:	bf00      	nop
+ 800200c:	f3af 8000 	nop.w
  8002010:	00000000 	.word	0x00000000
  8002014:	412e8480 	.word	0x412e8480
  8002018:	2000048e 	.word	0x2000048e
@@ -4119,63 +4118,63 @@ void ca_measurements_and_responses(){
  80021e8:	2202      	movs	r2, #2
  80021ea:	701a      	strb	r2, [r3, #0]
  80021ec:	e091      	b.n	8002312 <ca_measurements_and_responses+0x1aa>
-		else if((HAL_GetTick() - calibration_time_passed > 4000) && (HAL_GetTick() - calibration_time_passed< 7000)){
+		else if((HAL_GetTick() - calibration_time_passed > 4000) && (HAL_GetTick() - calibration_time_passed< 8000)){
  80021ee:	f002 f82d 	bl	800424c <HAL_GetTick>
  80021f2:	4602      	mov	r2, r0
  80021f4:	4b4c      	ldr	r3, [pc, #304]	; (8002328 <ca_measurements_and_responses+0x1c0>)
  80021f6:	681b      	ldr	r3, [r3, #0]
  80021f8:	1ad3      	subs	r3, r2, r3
  80021fa:	f5b3 6f7a 	cmp.w	r3, #4000	; 0xfa0
- 80021fe:	d910      	bls.n	8002222 <ca_measurements_and_responses+0xba>
+ 80021fe:	d90f      	bls.n	8002220 <ca_measurements_and_responses+0xb8>
  8002200:	f002 f824 	bl	800424c <HAL_GetTick>
  8002204:	4602      	mov	r2, r0
  8002206:	4b48      	ldr	r3, [pc, #288]	; (8002328 <ca_measurements_and_responses+0x1c0>)
  8002208:	681b      	ldr	r3, [r3, #0]
  800220a:	1ad3      	subs	r3, r2, r3
- 800220c:	f641 3257 	movw	r2, #6999	; 0x1b57
- 8002210:	4293      	cmp	r3, r2
- 8002212:	d806      	bhi.n	8002222 <ca_measurements_and_responses+0xba>
+ 800220c:	f5b3 5ffa 	cmp.w	r3, #8000	; 0x1f40
+ 8002210:	d206      	bcs.n	8002220 <ca_measurements_and_responses+0xb8>
 			g_SP_measure =1;
- 8002214:	4b47      	ldr	r3, [pc, #284]	; (8002334 <ca_measurements_and_responses+0x1cc>)
- 8002216:	2201      	movs	r2, #1
- 8002218:	701a      	strb	r2, [r3, #0]
+ 8002212:	4b48      	ldr	r3, [pc, #288]	; (8002334 <ca_measurements_and_responses+0x1cc>)
+ 8002214:	2201      	movs	r2, #1
+ 8002216:	701a      	strb	r2, [r3, #0]
 			sweep_through_IV_curve_during_calibration = 1;
- 800221a:	4b47      	ldr	r3, [pc, #284]	; (8002338 <ca_measurements_and_responses+0x1d0>)
- 800221c:	2201      	movs	r2, #1
- 800221e:	701a      	strb	r2, [r3, #0]
- 8002220:	e077      	b.n	8002312 <ca_measurements_and_responses+0x1aa>
-		else if((HAL_GetTick() - calibration_time_passed > 7000) && (HAL_GetTick() - calibration_time_passed< 8000) && g_SP_measure == 1){
- 8002222:	f002 f813 	bl	800424c <HAL_GetTick>
- 8002226:	4602      	mov	r2, r0
- 8002228:	4b3f      	ldr	r3, [pc, #252]	; (8002328 <ca_measurements_and_responses+0x1c0>)
- 800222a:	681b      	ldr	r3, [r3, #0]
- 800222c:	1ad3      	subs	r3, r2, r3
- 800222e:	f641 3258 	movw	r2, #7000	; 0x1b58
- 8002232:	4293      	cmp	r3, r2
- 8002234:	d910      	bls.n	8002258 <ca_measurements_and_responses+0xf0>
- 8002236:	f002 f809 	bl	800424c <HAL_GetTick>
- 800223a:	4602      	mov	r2, r0
- 800223c:	4b3a      	ldr	r3, [pc, #232]	; (8002328 <ca_measurements_and_responses+0x1c0>)
- 800223e:	681b      	ldr	r3, [r3, #0]
- 8002240:	1ad3      	subs	r3, r2, r3
- 8002242:	f5b3 5ffa 	cmp.w	r3, #8000	; 0x1f40
- 8002246:	d207      	bcs.n	8002258 <ca_measurements_and_responses+0xf0>
- 8002248:	4b3a      	ldr	r3, [pc, #232]	; (8002334 <ca_measurements_and_responses+0x1cc>)
- 800224a:	781b      	ldrb	r3, [r3, #0]
- 800224c:	2b01      	cmp	r3, #1
- 800224e:	d103      	bne.n	8002258 <ca_measurements_and_responses+0xf0>
+ 8002218:	4b47      	ldr	r3, [pc, #284]	; (8002338 <ca_measurements_and_responses+0x1d0>)
+ 800221a:	2201      	movs	r2, #1
+ 800221c:	701a      	strb	r2, [r3, #0]
+ 800221e:	e078      	b.n	8002312 <ca_measurements_and_responses+0x1aa>
+		else if((HAL_GetTick() - calibration_time_passed > 8000) && (HAL_GetTick() - calibration_time_passed< 9000) && g_SP_measure == 1){
+ 8002220:	f002 f814 	bl	800424c <HAL_GetTick>
+ 8002224:	4602      	mov	r2, r0
+ 8002226:	4b40      	ldr	r3, [pc, #256]	; (8002328 <ca_measurements_and_responses+0x1c0>)
+ 8002228:	681b      	ldr	r3, [r3, #0]
+ 800222a:	1ad3      	subs	r3, r2, r3
+ 800222c:	f5b3 5ffa 	cmp.w	r3, #8000	; 0x1f40
+ 8002230:	d911      	bls.n	8002256 <ca_measurements_and_responses+0xee>
+ 8002232:	f002 f80b 	bl	800424c <HAL_GetTick>
+ 8002236:	4602      	mov	r2, r0
+ 8002238:	4b3b      	ldr	r3, [pc, #236]	; (8002328 <ca_measurements_and_responses+0x1c0>)
+ 800223a:	681b      	ldr	r3, [r3, #0]
+ 800223c:	1ad3      	subs	r3, r2, r3
+ 800223e:	f242 3227 	movw	r2, #8999	; 0x2327
+ 8002242:	4293      	cmp	r3, r2
+ 8002244:	d807      	bhi.n	8002256 <ca_measurements_and_responses+0xee>
+ 8002246:	4b3b      	ldr	r3, [pc, #236]	; (8002334 <ca_measurements_and_responses+0x1cc>)
+ 8002248:	781b      	ldrb	r3, [r3, #0]
+ 800224a:	2b01      	cmp	r3, #1
+ 800224c:	d103      	bne.n	8002256 <ca_measurements_and_responses+0xee>
 				g_SP_measure =2;
- 8002250:	4b38      	ldr	r3, [pc, #224]	; (8002334 <ca_measurements_and_responses+0x1cc>)
- 8002252:	2202      	movs	r2, #2
- 8002254:	701a      	strb	r2, [r3, #0]
- 8002256:	e05c      	b.n	8002312 <ca_measurements_and_responses+0x1aa>
-		else if(HAL_GetTick() - calibration_time_passed > 8000){
- 8002258:	f001 fff8 	bl	800424c <HAL_GetTick>
- 800225c:	4602      	mov	r2, r0
- 800225e:	4b32      	ldr	r3, [pc, #200]	; (8002328 <ca_measurements_and_responses+0x1c0>)
- 8002260:	681b      	ldr	r3, [r3, #0]
- 8002262:	1ad3      	subs	r3, r2, r3
- 8002264:	f5b3 5ffa 	cmp.w	r3, #8000	; 0x1f40
+ 800224e:	4b39      	ldr	r3, [pc, #228]	; (8002334 <ca_measurements_and_responses+0x1cc>)
+ 8002250:	2202      	movs	r2, #2
+ 8002252:	701a      	strb	r2, [r3, #0]
+ 8002254:	e05d      	b.n	8002312 <ca_measurements_and_responses+0x1aa>
+		else if(HAL_GetTick() - calibration_time_passed > 9000){
+ 8002256:	f001 fff9 	bl	800424c <HAL_GetTick>
+ 800225a:	4602      	mov	r2, r0
+ 800225c:	4b32      	ldr	r3, [pc, #200]	; (8002328 <ca_measurements_and_responses+0x1c0>)
+ 800225e:	681b      	ldr	r3, [r3, #0]
+ 8002260:	1ad3      	subs	r3, r2, r3
+ 8002262:	f242 3228 	movw	r2, #9000	; 0x2328
+ 8002266:	4293      	cmp	r3, r2
  8002268:	d953      	bls.n	8002312 <ca_measurements_and_responses+0x1aa>
 			cal_entered  =1;
  800226a:	4b2e      	ldr	r3, [pc, #184]	; (8002324 <ca_measurements_and_responses+0x1bc>)
