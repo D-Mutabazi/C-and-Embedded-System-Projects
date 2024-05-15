@@ -83,7 +83,7 @@ uint16_t g_temp_in_deg_dig_sens = 0;
 
 //SFH235 Photodiode
 double g_raw_lux_value = 0; ;
-uint16_t g_get_lxd_value= 0;
+float g_get_lxd_value= 0;
 char g_lxd_value[6] = {} ;
 
 //Solar Panel
@@ -171,7 +171,7 @@ uint8_t sweep_through_IV_curve_during_calibration = 0;
 uint32_t sweeping_through_IV_during_calibration_time =0;
 
 uint8_t cal_entered = 1;
-uint16_t lux_at_calibration = 0;
+float lux_at_calibration = 0;
 float calibrated_power = 0;
 uint16_t panel_temp_at_calibration = 0;
 //******************
@@ -802,7 +802,7 @@ void en_measurements_and_responses(){
 
 	  //PHOTODIOCE ouput
 	  g_get_lxd_value = get_adc_value_conver_to_lux();
-	  snprintf(g_lxd_value, sizeof(g_lxd_value), "%05d",g_get_lxd_value);
+	  snprintf(g_lxd_value, sizeof(g_lxd_value), "%05.0f",g_get_lxd_value);
 
 	  // DIGITAL SENSOR CALIBRATION
 	  g_lmt01_sens_temp =  (uint16_t)g_TO1_temp ;
@@ -814,6 +814,12 @@ void en_measurements_and_responses(){
 
 	  }
 
+	  if(g_CA_measure == 1){
+
+		  lux_at_calibration = g_get_lxd_value;
+		  panel_temp_at_calibration = g_lmt01_sens_temp ; //panel temperature
+
+	  }
 	  //Flash D3 LED -> put in function
 	  flash_led_d3();
 	}
@@ -830,7 +836,7 @@ void en_measurements_and_responses(){
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET) ;
 
 	  //store system state to transmit
-	  snprintf(system_state_transmit,sizeof(system_state_transmit),"&_%03d_%03d_%05d_*\n",g_temp_in_deg,g_lmt01_sens_temp, g_get_lxd_value );
+	  snprintf(system_state_transmit,sizeof(system_state_transmit),"&_%03d_%03d_%05.0f_*\n",g_temp_in_deg,g_lmt01_sens_temp, g_get_lxd_value );
 
 	  // Transmit system state via the UART
 	  if(g_transmit_system_state  == 1){
@@ -919,13 +925,20 @@ void sp_measurements_and_responses(){
 		if(g_p_pv > g_prev_p_pv ){
 			//calibrate measured power
 			g_p_mpp = g_p_pv ;
-//			g_p_mpp =  get_calibrated_power(g_get_lxd_value, g_lmt01_sens_temp, g_p_pv) ; //calibrated power
 
-//			g_p_mpp_calibrated =( g_p_mpp/(1+(-.004)*(g_lmt01_sens_temp-25)))*lux_at_calibration/g_get_lxd_value ;
 			g_v_mpp = g_PV_vol1 ;
 			g_i_mpp = g_i_pv ;
-			g_pv_eff = (calibrated_power/g_p_mpp_calibrated)*100 ;
+//			g_pv_eff = (g_p_mpp_calibrated/calibrated_power)*100 ;
 			g_prev_p_pv = g_p_pv ;
+		}
+
+		if(g_CA_measure == 1){
+
+			calibrated_power = g_p_mpp/(1+(-0.004)*(panel_temp_at_calibration -25)) ; //Calibrated Power
+
+		}
+		else{
+
 		}
 
 		if(clear_lcd_display == 1){
@@ -948,6 +961,18 @@ void sp_measurements_and_responses(){
 	  }
 
 	  else if(g_SP_measure == 2){
+
+		 //efficiency during calibration
+		if(g_CA_measure == 1){
+//			g_p_mpp_calibrated =( g_p_mpp/(1+(-.004)*(g_lmt01_sens_temp-25))) ;
+			g_pv_eff = ((g_p_mpp/(1+(-.004)*(g_lmt01_sens_temp-25)))/calibrated_power)*100;
+		}
+
+		//Effienc after calibration
+		else{
+			g_p_mpp_calibrated = ( g_p_mpp/(1+(-.004)*(g_lmt01_sens_temp-25)))*(lux_at_calibration/g_get_lxd_value);
+			g_pv_eff = (g_p_mpp_calibrated/calibrated_power)*100;
+		}
 		  //enter this state once
 		  g_SP_measure = 0;
 
@@ -1012,16 +1037,16 @@ void ca_measurements_and_responses(){
 
 		else if(HAL_GetTick() - calibration_time_passed > 9000){
 			cal_entered  =1;
-			panel_temp_at_calibration = g_lmt01_sens_temp ; //panel temperature
+//			panel_temp_at_calibration = g_lmt01_sens_temp ; //panel temperature
 
 			sweep_through_IV_curve_during_calibration =0;
 
 //			calibrated_lux  =g_get_lxd_value ; //lux at calibration
-			lux_at_calibration = g_get_lxd_value ;
+//			lux_at_calibration = g_get_lxd_value ;
 
-			calibrated_power = g_p_mpp ;
-
-			calibrated_power = calibrated_power/(1+(-0.004)*(panel_temp_at_calibration -25)) ; //Calibrated Power
+//			calibrated_power = g_p_mpp ;
+//
+//			calibrated_power = calibrated_power/(1+(-0.004)*(panel_temp_at_calibration -25)) ; //Calibrated Power
 
 			calibration_time_passed =  HAL_GetTick() ;
 
@@ -1121,7 +1146,7 @@ void lcd_Mode_2(){
 
 	//scale lux value: [0: 30000]?
 	Lcd_cursor(&lcd, 1,0);
-	snprintf(g_lcd_lux_val, sizeof(g_lcd_lux_val),"LUX:%05d",g_get_lxd_value);
+	snprintf(g_lcd_lux_val, sizeof(g_lcd_lux_val),"LUX:%05.0f",g_get_lxd_value);
 	Lcd_string(&lcd,g_lcd_lux_val);
 }
 
