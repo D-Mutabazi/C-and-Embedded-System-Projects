@@ -54,7 +54,7 @@ TIM_HandleTypeDef htim5;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint8_t studentNum[13] = "&_23765518_*\n" ;
+uint8_t studentNum[13] = "&_23854359_*\n" ;
 
 char char_rcvd[1] = " " ;
 
@@ -798,6 +798,8 @@ void en_measurements_and_responses(){
 	  }
 	  //ANALOGUE SENSOR CALIBRATION
 	  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
+//	  g_temp_in_deg = get_adc_value_and_celsius_temperature() ;
+
 	  store_temp_in_string(g_temp_in_deg, g_temperature, LEN);
 
 	  //PHOTODIOCE ouput
@@ -875,11 +877,11 @@ void sp_measurements_and_responses(){
 		  }
 
 		  //sweep through IV curve every 3ms - to account for 3 second SP calibration
-		  if(HAL_GetTick() -previous_dutycyle_reference_point >=30 && continue_increasing_dutycyle == 1){
+		  if(HAL_GetTick() -previous_dutycyle_reference_point >=60 && continue_increasing_dutycyle == 1){
 			  CCR_value = TIM5->CCR2 ;
-			  TIM5->CCR2+=3;
+			  TIM5->CCR2++;
 			  //check for overflow
-			  if(TIM5->CCR2 > 100 ){
+			  if(TIM5->CCR2 >= 100 ){
 				  continue_increasing_dutycyle = 0;
 
 				  TIM5->CCR2 = 0;
@@ -1013,15 +1015,15 @@ void ca_measurements_and_responses(){
 		flash_led_d4() ;
 
 
-		if(HAL_GetTick() - calibration_time_passed <3000){
+		if(HAL_GetTick() - calibration_time_passed <2000){
 			g_EN_measure =1;
 
 		}
-		else if((HAL_GetTick() - calibration_time_passed > 3000) && (HAL_GetTick() - calibration_time_passed< 4000) && g_EN_measure == 1){
+		else if((HAL_GetTick() - calibration_time_passed > 2000) && (HAL_GetTick() - calibration_time_passed< 3000) && g_EN_measure == 1){
 			g_EN_measure =2;
 
 		}
-		else if((HAL_GetTick() - calibration_time_passed > 4000) && (HAL_GetTick() - calibration_time_passed< 8000)){
+		else if((HAL_GetTick() - calibration_time_passed > 3000) && (HAL_GetTick() - calibration_time_passed< 9000)){
 			g_SP_measure =1;
 
 			//sweep through IV curve even faster during the calibration SEQUENCE
@@ -1029,13 +1031,13 @@ void ca_measurements_and_responses(){
 
 		}
 
-		else if((HAL_GetTick() - calibration_time_passed > 8000) && (HAL_GetTick() - calibration_time_passed< 9000) && g_SP_measure == 1){
+		else if((HAL_GetTick() - calibration_time_passed > 9000) && (HAL_GetTick() - calibration_time_passed< 10000) && g_SP_measure == 1){
 				g_SP_measure =2;
 
 
 		}
 
-		else if(HAL_GetTick() - calibration_time_passed > 9000){
+		else if(HAL_GetTick() - calibration_time_passed >= 10000){
 			cal_entered  =1;
 //			panel_temp_at_calibration = g_lmt01_sens_temp ; //panel temperature
 
